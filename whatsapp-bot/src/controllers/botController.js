@@ -11,10 +11,10 @@ const rateLimiter = require('../middlewares/rateLimiter');
 const connectionHandler = require('../middlewares/connectionHandler');
 const cache = require('../database/cache');
 
-const authHandler = require('./authHandler');
-const adminHandler = require('./adminHandler');
-const merchantHandler = require('./merchantHandler');
-const customerHandler = require('./customerHandler');
+const authHandler = require('../handlers/authHandler');
+const adminHandler = require('../handlers/adminHandler');
+const merchantHandler = require('../handlers/merchantHandler');
+const customerHandler = require('../handlers/customerHandler');
 
 const Logger = require('../config/logger');
 const constants = require('../config/constants');
