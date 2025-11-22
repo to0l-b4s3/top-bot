@@ -100,16 +100,34 @@ class CustomerHandler {
       return { message: 'No products available. Please try again later.' };
     }
 
-    const products = response.data.slice(0, 15);
-    let message = `*🛒 Available Products*\n━━━━━━━━━━━━━━━\n\n`;
+    const products = response.data.slice(0, 12);
+    let message = `
+╔════════════════════════════════════════════════╗
+║ 🛒  MENU - AVAILABLE PRODUCTS
+╠════════════════════════════════════════════════╣
+║
+`;
 
     products.forEach((product, i) => {
-      message += `${i + 1}. *${product.name}*\n`;
-      message += `   💰 ZWL ${product.price.toFixed(2)}\n`;
-      message += `   ID: \`${product.id}\`\n\n`;
+      const priceStr = `ZWL ${product.price.toFixed(2)}`;
+      const ratingStr = `${MessageFormatter.getStarRating(product.rating || 0)} ${product.rating || 'N/A'}`;
+      message += `║ ${(i + 1).toString().padStart(2)}. ${product.name.substring(0, 25).padEnd(25)} │ ${priceStr.padEnd(10)} │ ${ratingStr}\n`;
     });
 
-    message += `To add to cart: *!add <product_id> <quantity>*\nExample: \`!add prod123 2\``;
+    message += `║
+╠════════════════════════════════════════════════╣
+║
+║ 📝 How to Order:
+║ ┌────────────────────────────────────────────┐
+║ │ !add <product_number> <quantity>           │
+║ │ Example: !add 5 2  (order item #5, qty 2)  │
+║ │                                             │
+║ │ !search <item_name>  (search for items)    │
+║ │ !cart              (view your cart)        │
+║ └────────────────────────────────────────────┘
+║
+╚════════════════════════════════════════════════╝
+    `.trim();
 
     return { message };
   }
@@ -124,25 +142,38 @@ class CustomerHandler {
 
     const response = await backendAPI.searchProducts(query);
     if (!response.success || response.data.length === 0) {
-      return { message: `No products found for "${query}". Try a different search.` };
+      return { message: `❌ No products found for "*${query}*"\n\n💡 Try searching with different keywords or browse categories with !categories` };
     }
 
-    let message = `*🔍 Search Results for "${query}"*\n━━━━━━━━━━━━━━━\n\n`;
+    let message = `
+╔════════════════════════════════════════════════╗
+║ 🔎  SEARCH RESULTS
+╠════════════════════════════════════════════════╣
+║ Query: *${query}*
+║ Found: ${response.data.length} results
+╠════════════════════════════════════════════════╣
+║
+`;
     const results = response.data.slice(0, 10);
 
     results.forEach((product, i) => {
-      message += `${i + 1}. *${product.name}*\n`;
-      message += `   🏪 ${product.merchant_name}\n`;
-      message += `   💰 ZWL ${product.price.toFixed(2)}\n`;
-      message += `   ⭐ ${product.rating || 'N/A'}\n`;
-      message += `   ID: \`${product.id}\`\n\n`;
+      message += `║ ${(i + 1).toString().padStart(2)}. *${product.name.substring(0, 25)}*
+║    🏪 ${product.merchant_name.substring(0, 25)}
+║    💰 ZWL ${product.price.toFixed(2).padEnd(8)} ⭐ ${product.rating || 'N/A'}
+║
+`;
     });
 
     if (response.data.length > 10) {
-      message += `\n... and ${response.data.length - 10} more results`;
+      message += `║ ... and ${response.data.length - 10} more results\n║\n`;
     }
 
-    message += `\nTo add: *!add <id> <qty>*`;
+    message += `╠════════════════════════════════════════════════╣
+║ 🛒 Quick Action:
+║ !add <number> <quantity>
+║ Example: !add 3 2
+╚════════════════════════════════════════════════╝
+    `.trim();
 
     return { message };
   }
@@ -310,7 +341,19 @@ class CustomerHandler {
     const cart = await cache.getUserCart(phoneNumber);
 
     if (!cart.items || cart.items.length === 0) {
-      return { message: '🛒 Your cart is empty. Add items first!' };
+      return { message: `
+╔════════════════════════════════════════╗
+║ 🛒  CART IS EMPTY
+╠════════════════════════════════════════╣
+║
+║ Start shopping now:
+║ • !menu             (browse all items)
+║ • !search <item>    (search for items)
+║ • !categories       (view categories)
+║ • !deals            (see hot deals)
+║
+╚════════════════════════════════════════╝
+      ` };
     }
 
     const session = await cache.getUserSession(phoneNumber);
@@ -320,7 +363,7 @@ class CustomerHandler {
       items: cart.items,
       total: cart.total,
       customer_name: session?.name || 'Customer',
-      delivery_type: 'delivery', // Could offer choice here
+      delivery_type: 'delivery',
       delivery_address: session?.delivery_address || '',
     });
 
@@ -334,19 +377,32 @@ class CustomerHandler {
     await cache.clearUserCart(phoneNumber);
 
     const message = `
-✅ *Order Placed Successfully!*
-━━━━━━━━━━━━━━━
-
-Order ID: \`${order.id}\`
-Total: ZWL ${order.total.toFixed(2)}
-
-🚚 Delivery Address:
-${session?.delivery_address || 'Pickup'}
-
-Your order has been sent to the merchant.
-You'll receive updates as it progresses.
-
-Type *!track ${order.id}* to track your order
+╔════════════════════════════════════════════════╗
+║ ✅  ORDER PLACED SUCCESSFULLY!
+╠════════════════════════════════════════════════╣
+║
+║ 🎉 Thank you for your order!
+║
+║ 📦 Order ID: ${order.id}
+║ 💰 Total:    ZWL ${order.total.toFixed(2)}
+║ 📍 Delivery: ${session?.delivery_address || 'Will be requested'}
+║
+╠════════════════════════════════════════════════╣
+║
+║ 📊 What's Next?
+║ ┌──────────────────────────────────────────┐
+║ │ ✅ Your order has been sent to merchant  │
+║ │ 🔔 You'll get updates as it progresses   │
+║ │ 📍 Track order: !track ${order.id}
+║ │ 📞 Contact support if needed             │
+║ └──────────────────────────────────────────┘
+║
+║ 🔘 Quick Actions:
+║ • !orders    (view all orders)
+║ • !menu      (continue shopping)
+║ • !track ${order.id}  (track this order)
+║
+╚════════════════════════════════════════════════╝
     `.trim();
 
     return { message };

@@ -63,7 +63,18 @@ class AuthHandler {
 
     if (!args[0]) {
       return {
-        message: `*📝 Welcome! Let's register*\n━━━━━━━━━━━━━━━\n\nWhat's your name?`,
+        message: `
+╔════════════════════════════════════════════════╗
+║ 👋  WELCOME TO SMART WHATSAPP BOT!
+╠════════════════════════════════════════════════╣
+║
+║ Let's get you set up! 📝
+║
+║ Please tell us your name:
+║ (Reply with just your name)
+║
+╚════════════════════════════════════════════════╝
+        `,
         flowActive: true,
       };
     }
@@ -72,7 +83,7 @@ class AuthHandler {
     const role = args[args.length - 1].toLowerCase() || 'customer';
 
     if (!['customer', 'merchant'].includes(role)) {
-      return { error: 'Invalid role. Choose: customer or merchant' };
+      return { error: 'Invalid role. Choose: *customer* or *merchant*' };
     }
 
     // Send registration request to backend
@@ -90,24 +101,56 @@ class AuthHandler {
       registered_at: new Date().toISOString(),
     });
 
-    let message = `✅ *Welcome ${name}!*\n\n`;
-    
-    if (role === 'merchant') {
-      message += `Your merchant account is pending approval.\n\n`;
-      message += `Next Steps:\n`;
-      message += `1. Wait for admin review\n`;
-      message += `2. You'll be notified when approved\n`;
-      message += `3. Then you can add products\n\n`;
-      message += `OTP sent to your phone for verification.`;
-    } else {
-      message += `You're ready to start shopping!\n\n`;
-      message += `Try:\n`;
-      message += `!menu - Browse products\n`;
-      message += `!search pizza - Search items\n`;
-      message += `!help - See all commands`;
-    }
+    let message = role === 'merchant' ? `
+╔════════════════════════════════════════════════╗
+║ 🎉  WELCOME TO OUR MERCHANT COMMUNITY!
+╠════════════════════════════════════════════════╣
+║
+║ Hello ${name}! 👋
+║
+║ Your merchant account has been created! 🏪
+║
+║ 📋 NEXT STEPS:
+║ ┌──────────────────────────────────────────┐
+║ │ 1. We'll review your application         │
+║ │ 2. You'll receive approval notification  │
+║ │ 3. Then you can add products & orders    │
+║ │ 4. Start making sales! 💰                │
+║ └──────────────────────────────────────────┘
+║
+║ 🔐 Verify your account with OTP:
+║ (Check your registered email/phone)
+║
+║ Questions? Type !help
+║
+╚════════════════════════════════════════════════╝
+    ` : `
+╔════════════════════════════════════════════════╗
+║ 🎉  WELCOME TO SMART WHATSAPP BOT!
+╠════════════════════════════════════════════════╣
+║
+║ Hello ${name}! 👋
+║
+║ You're all set up as a customer! 🛒
+║
+║ 🚀 START SHOPPING NOW:
+║ ┌──────────────────────────────────────────┐
+║ │ !menu        📋 Browse all products      │
+║ │ !search xyz  🔎 Search for items        │
+║ │ !categories  📂 View categories          │
+║ │ !nearby      📍 See stores near you      │
+║ │ !deals       🎉 Check out deals         │
+║ └──────────────────────────────────────────┘
+║
+║ 💡 TIP: Add items to cart with !add
+║ Then checkout with !checkout
+║
+║ Need help? Type !help
+║
+╚════════════════════════════════════════════════╝
+    `;
 
-    return { message };
+    return { message: message.trim() };
   }
 
   /**
