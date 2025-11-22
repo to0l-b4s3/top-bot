@@ -69,64 +69,48 @@ class SmartWhatsAppBotModular {
     this.app.get('/health', (req, res) => {
       res.json({
         status: this.sock ? 'connected' : 'disconnected',
-        bot: 'smart-whatsapp-modular',
         uptime: process.uptime(),
-        timestamp: new Date().toISOString(),
       });
     });
 
-    // Order update webhook from backend
+    // Order update webhook
     this.app.post('/webhook/order-update', async (req, res) => {
       try {
         const { orderId, status, customerPhone } = req.body;
-        
-        const message = `📦 *Order Update*\n\nOrder #${orderId}\nStatus: ${status}\n\nType !track ${orderId} for more details`;
-        
+        const message = `📦 Order #${orderId}\nStatus: ${status}`;
         await botController.sendMessage(this.sock, `${customerPhone}@s.whatsapp.net`, message);
-        
-        logger.success(`Webhook: Order update sent to ${customerPhone}`);
         res.json({ success: true });
       } catch (error) {
-        logger.error('Webhook error', error);
         res.status(500).json({ error: error.message });
       }
     });
 
-    // Merchant approved notification
+    // Merchant approved
     this.app.post('/webhook/merchant-approved', async (req, res) => {
       try {
         const { merchantPhone, businessName } = req.body;
-        
-        const message = `🎉 *Congratulations!*\n\nYour merchant account for "${businessName}" has been approved!\n\nType !help to see merchant commands`;
-        
+        const message = `🎉 Your "${businessName}" account approved!`;
         await botController.sendMessage(this.sock, `${merchantPhone}@s.whatsapp.net`, message);
-        
-        logger.success(`Webhook: Merchant approved notification sent to ${merchantPhone}`);
         res.json({ success: true });
       } catch (error) {
-        logger.error('Webhook error', error);
         res.status(500).json({ error: error.message });
       }
     });
 
-    // Product updated notification
+    // Product update
     this.app.post('/webhook/product-updated', async (req, res) => {
       try {
         const { merchantPhone, productName, action } = req.body;
-        
-        const message = `📦 *Product ${action}*\n\n"${productName}" has been ${action}.\n\nType !merchant products to see all your products`;
-        
+        const message = `📦 "${productName}" has been ${action}`;
         await botController.sendMessage(this.sock, `${merchantPhone}@s.whatsapp.net`, message);
-        
         res.json({ success: true });
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
     });
 
-    // Start server
     this.server = this.app.listen(constants.BOT_WEBHOOK_PORT, () => {
-      logger.success(`✅ Webhook server running on port ${constants.BOT_WEBHOOK_PORT}`);
+      logger.success(`✓ Webhook server running on port ${constants.BOT_WEBHOOK_PORT}`);
     });
   }
 
@@ -246,34 +230,13 @@ class SmartWhatsAppBotModular {
   }
 
   displayStartupInfo() {
-    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-    console.log(chalk.green('✅ BOT CONNECTED AND READY'));
-    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-    console.log(chalk.yellow('\n📋 Available Command Categories:\n'));
-    
-    console.log(chalk.white('👨‍💼 ADMIN Commands:'));
-    console.log(chalk.gray('   !admin merchants pending'));
-    console.log(chalk.gray('   !admin approve <id>'));
-    console.log(chalk.gray('   !admin sales today\n'));
-    
-    console.log(chalk.white('🏪 MERCHANT Commands:'));
-    console.log(chalk.gray('   !merchant orders new'));
-    console.log(chalk.gray('   !merchant products list'));
-    console.log(chalk.gray('   !merchant analytics\n'));
-    
-    console.log(chalk.white('🛍️  CUSTOMER Commands:'));
-    console.log(chalk.gray('   !menu'));
-    console.log(chalk.gray('   !search <item>'));
-    console.log(chalk.gray('   !add <id> <qty>'));
-    console.log(chalk.gray('   !checkout\n'));
-    
-    console.log(chalk.white('🔑 GENERAL Commands:'));
-    console.log(chalk.gray('   !register [name] [role]'));
-    console.log(chalk.gray('   !login'));
-    console.log(chalk.gray('   !help\n'));
-    
-    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-    console.log(chalk.green('🚀 Ready to receive messages!\n'));
+    console.log(chalk.green('\n✓ BOT CONNECTED AND READY\n'));
+    console.log(chalk.cyan('📋 Commands:'));
+    console.log(chalk.gray('  !register    - Create account'));
+    console.log(chalk.gray('  !login       - Login'));
+    console.log(chalk.gray('  !menu        - Browse products'));
+    console.log(chalk.gray('  !help        - Show all commands'));
+    console.log(chalk.gray('  !owner       - Contact developer\n'));
   }
 
   /**
