@@ -12,7 +12,10 @@
     "bot:legacy": "node enhanced-bot.js",
     "build": "echo 'Bot is JavaScript-based, no build required'",
     "test": "echo 'No tests configured yet'",
-    "lint": "eslint src/**/*.js"
+    "lint": "eslint src/**/*.js",
+    "verify:handlers": "node verify-handlers.js",
+    "test:integration": "node test-integration.js",
+    "test:all": "npm run verify:handlers && npm run test:integration"
   },
   "dependencies": {
     "@adiwajshing/keyed-db": "^0.2.4",
