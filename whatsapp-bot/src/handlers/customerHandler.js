@@ -10,6 +10,7 @@ const databaseService = require('../database/service');
 const MessageFormatter = require('../utils/messageFormatter');
 const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
 const FlowManager = require('../utils/flowManager');
+const WorldClassResponses = require('../utils/worldClassResponses');
 const Logger = require('../config/logger');
 
 const logger = new Logger('CustomerHandler');
@@ -119,19 +120,10 @@ class CustomerHandler {
     const response = await backendAPI.getProducts({});
     const products = response?.success ? response.data.slice(0, 6) : dummyProducts;
 
-    return InteractiveMessageBuilder.listMessage(
-      '🛒 MENU - PRODUCTS',
-      `Browse ${products.length} popular items`,
-      [{
-        title: 'Available Products',
-        rows: products.map((product, i) => ({
-          rowId: `add_${product.id}`,
-          title: `${product.image} ${product.name}`,
-          description: `ZWL ${product.price} • ⭐ ${product.rating}`
-        }))
-      }],
-      'Tap to add to cart'
-    );
+    // Return beautiful world-class menu
+    const menuDisplay = WorldClassResponses.createProductMenu(products, 'All Products');
+    
+    return { message: menuDisplay };
   }
 
   /**
@@ -139,33 +131,38 @@ class CustomerHandler {
    */
   async handleSearchCommand(query, phoneNumber, from) {
     if (!query || query.length < 2) {
-      return InteractiveMessageBuilder.createErrorCard(
-        'Search query too short',
-        ['Use at least 2 characters', 'Example: !search pizza']
-      );
+      return { message: WorldClassResponses.createHelpfulError('NO_PRODUCTS', [
+        'Use at least 2 characters',
+        'Example: !search pizza'
+      ]) };
     }
 
     const response = await backendAPI.searchProducts(query);
     if (!response.success || response.data.length === 0) {
-      return InteractiveMessageBuilder.createErrorCard(
-        `No products found for "${query}"`,
-        ['Try different keywords', '!menu to see all items']
-      );
+      return { message: WorldClassResponses.createHelpfulError('NO_PRODUCTS', [
+        'Try different keywords',
+        'Browse !menu to see all items',
+        'Type !categories to explore by type'
+      ]) };
     }
 
-    return InteractiveMessageBuilder.listMessage(
-      `🔎 SEARCH RESULTS`,
-      `Found ${response.data.length} items for "${query}"`,
-      [{
-        title: 'Products',
-        rows: response.data.slice(0, 10).map((product, i) => ({
-          rowId: `add_${product.id}`,
-          title: `${product.name}`,
-          description: `ZWL ${product.price} • ${product.merchant_name}`
-        }))
-      }],
-      response.data.length > 10 ? `Showing 10 of ${response.data.length}` : 'Tap to add'
-    );
+    const searchDisplay = `
+╔════════════════════════════════════════╗
+║  🔎 *SEARCH RESULTS*
+║  "${query}" - Found ${response.data.length}
+╠════════════════════════════════════════╣
+║
+${response.data.slice(0, 10).map((p, i) => `║ ${(i + 1).toString().padEnd(2, '.')} ${p.image || '🛍️'} ${(p.name || '').substring(0, 24)}
+║    💰 ZWL ${p.price.toFixed(0).padEnd(8)} ⭐ ${(p.rating || 0).toFixed(1)}
+║`).join('\n')}
+╠════════════════════════════════════════╣
+║ ${response.data.length > 10 ? `Showing 10 of ${response.data.length}` : 'All results shown'}
+║ 👉 Reply with number to add
+║ Example: Reply "1" for first item
+╚════════════════════════════════════════╝
+    `.trim();
+
+    return { message: searchDisplay };
   }
 
   /**
@@ -182,18 +179,21 @@ class CustomerHandler {
       { emoji: '🌿', title: 'Groceries', id: 'cat_groceries' },
     ];
 
-    return InteractiveMessageBuilder.listMessage(
-      '📂 CATEGORIES',
-      'Browse by category',
-      [{
-        title: 'Available Categories',
-        rows: categories.map(cat => ({
-          rowId: cat.id,
-          title: `${cat.emoji} ${cat.title}`,
-          description: 'Tap to browse'
-        }))
-      }]
-    );
+    const categoryDisplay = `
+╔════════════════════════════════════════╗
+║  📂 *SHOP BY CATEGORY*
+╠════════════════════════════════════════╣
+║
+${categories.map((cat, i) => `║ ${(i + 1).toString().padEnd(2, '.')} ${cat.emoji} *${cat.title}*`).join('\n║\n')}
+║
+╠════════════════════════════════════════╣
+║ 👉 Reply with number
+║ Example: Reply "1" for Food
+║ Or: !search <keyword>
+╚════════════════════════════════════════╝
+    `.trim();
+
+    return { message: categoryDisplay };
   }
 
   /**
@@ -206,18 +206,22 @@ class CustomerHandler {
       { emoji: '🥖', name: 'Local Bakery', distance: '1.2km', rating: 4.9, id: 'store_3' },
     ];
 
-    return InteractiveMessageBuilder.listMessage(
-      '📍 STORES NEAR YOU',
-      'Harare & Bulawayo Area',
-      [{
-        title: 'Top Stores',
-        rows: stores.map(store => ({
-          rowId: store.id,
-          title: `${store.emoji} ${store.name}`,
-          description: `${store.distance} • ⭐ ${store.rating}`
-        }))
-      }]
-    );
+    const nearbyDisplay = `
+╔════════════════════════════════════════╗
+║  📍 *STORES NEAR YOU*
+║     Harare & Bulawayo Area
+╠════════════════════════════════════════╣
+║
+${stores.map((store, i) => `║ ${(i + 1).toString().padEnd(2, '.')} ${store.emoji} ${store.name}
+║    📍 ${store.distance.padEnd(10)} ⭐ ${store.rating}/5.0`).join('\n║\n')}
+║
+╠════════════════════════════════════════╣
+║ 👉 Reply with number to view store
+║ Example: Reply "1" for Supa Stores
+╚════════════════════════════════════════╝
+    `.trim();
+
+    return { message: nearbyDisplay };
   }
 
   /**
