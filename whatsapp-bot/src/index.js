@@ -11,6 +11,7 @@ const {
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
   getContentType,
+  generateWAMessageFromContent,
   Browsers
 } = require('@whiskeysockets/baileys');
 const { makeInMemoryStore } = require('@rodrigogs/baileys-store');

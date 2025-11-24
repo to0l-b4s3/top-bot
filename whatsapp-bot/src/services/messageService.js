@@ -1,13 +1,16 @@
 /**
  * Message Service
  * Handles all message types: buttons, lists, templates, reactions, etc.
+ * Compatible with Baileys v7 (uses standard sendMessage API)
  */
 
 const chalk = require('chalk');
 
 class MessageService {
-  constructor(socket) {
+  constructor(socket, generateWAMessageFromContent = null) {
     this.sock = socket;
+    // v7 doesn't need this, but keep for backward compatibility
+    this.generateWAMessageFromContent = generateWAMessageFromContent;
   }
 
   /**
@@ -53,29 +56,28 @@ class MessageService {
    * @param {string} footerText - Footer text
    * @param {array} sections - Array of section objects
    */
-  async sendListMessage(chatId, buttonText, bodyText, footerText, sections) {
+  async sendListMessage(chatId, buttonTextOrPayload, bodyText, footerText, sections) {
     try {
-      const listMessage = {
-        body: { text: bodyText },
-        footer: { text: footerText || 'Smart Bot' },
-        sections: sections.map((section, sIdx) => ({
-          title: section.title,
-          rows: section.rows.map((row, rowIdx) => ({
-            id: `row_${sIdx}_${rowIdx}`,
-            title: row.title,
-            description: row.description || ''
-          }))
-        })),
-        action: {
-          button: buttonText || 'Select Option'
-        }
-      };
+      // Handle both old and new call signatures for backward compatibility
+      let payload;
+      
+      if (typeof buttonTextOrPayload === 'object') {
+        // New signature: sendListMessage(chatId, { text, sections, footer, buttonText })
+        payload = buttonTextOrPayload;
+      } else {
+        // Old signature: sendListMessage(chatId, buttonText, bodyText, footerText, sections)
+        payload = {
+          text: bodyText,
+          footer: footerText || 'Smart Bot',
+          sections: sections || [],
+          buttonText: buttonTextOrPayload
+        };
+      }
 
-      // Baileys v6 format for list messages
-      await this.sock.sendMessage(chatId, { 
-        interactive: listMessage
+      // Use sendInteractiveMessage for v7 compatibility
+      return await this.sendInteractiveMessage(chatId, {
+        listMessage: payload
       });
-      return { success: true };
     } catch (error) {
       console.error(chalk.red('❌ Error sending list message:'), error.message);
       return { success: false, error: error.message };
@@ -395,56 +397,83 @@ END:VCARD`;
   }
 
   /**
-   * Send Interactive List/Button Message
-   * For WhatsApp's native interactive menus (Baileys v7 compatible)
-   * @param {string} chatId - Chat ID
-   * @param {object} messagePayload - Full interactive message payload
-   *   If passing { listMessage: {...}}, it will be properly formatted
-   *   If passing { interactive: {...}}, it will be sent as-is
+   * Send Interactive Message (Baileys v7 compatible)
+   * Converts interactive payloads to simple button messages
+   * v7 doesn't support complex proto structures, so we use simpler format
    */
   async sendInteractiveMessage(chatId, messagePayload) {
     try {
-      // If payload has listMessage, convert to proper Baileys v6 format
+      // Baileys v7 doesn't support viewOnceMessage + interactiveMessage
+      // Instead, use simple text message with formatting for menus
+      
       if (messagePayload.listMessage) {
         const listMsg = messagePayload.listMessage;
         
-        // Transform sections and rows to use proper Baileys v6 format
-        const sections = Array.isArray(listMsg.sections) 
-          ? listMsg.sections.map((section, sIdx) => ({
-              title: section.title,
-              rows: Array.isArray(section.rows) 
-                ? section.rows.map((row) => ({
-                    id: row.id || row.rowId || `row_${Date.now()}_${Math.random()}`,
-                    title: row.title || '',
-                    description: row.description || ''
-                  }))
-                : []
-            }))
-          : [];
-
-        // Baileys v6 compatible list message format
-        const interactiveMessage = {
-          interactive: {
-            body: { text: listMsg.text || '' },
-            footer: { text: listMsg.footer || 'Smart Bot' },
-            sections: sections,
-            action: {
-              button: listMsg.buttonText || 'Select Option'
+        // Format as numbered list
+        let menuText = (listMsg.text || '') + '\n\n';
+        
+        if (Array.isArray(listMsg.sections)) {
+          listMsg.sections.forEach((section, sectionIndex) => {
+            if (section.title) {
+              menuText += `\n*${section.title}*\n`;
             }
-          }
-        };
-
-        await this.sock.sendMessage(chatId, interactiveMessage);
+            if (Array.isArray(section.rows)) {
+              section.rows.forEach((row, rowIndex) => {
+                const number = rowIndex + 1;
+                const title = row.title || '';
+                const desc = row.description ? ` - ${row.description}` : '';
+                menuText += `${number}. ${title}${desc}\n`;
+              });
+            }
+          });
+        }
+        
+        menuText += `\n${listMsg.footer || 'Smart Bot'}`;
+        
+        // Send as formatted text message
+        await this.sock.sendMessage(chatId, { text: menuText });
+        return { success: true };
       } else if (messagePayload.interactive) {
-        // Already in proper format, send as-is
-        await this.sock.sendMessage(chatId, messagePayload);
+        // Try to send interactive format, fallback to text if fails
+        try {
+          await this.sock.sendMessage(chatId, messagePayload.interactive);
+          return { success: true };
+        } catch (interactiveError) {
+          // Fallback to text
+          const fallbackText = messagePayload.interactive?.body?.text || 'Menu';
+          await this.sock.sendMessage(chatId, { text: fallbackText });
+          return { success: true };
+        }
+      } else if (messagePayload.buttons) {
+        // Send button message directly
+        try {
+          await this.sock.sendMessage(chatId, messagePayload);
+          return { success: true };
+        } catch (buttonError) {
+          // Fallback to text
+          const fallbackText = messagePayload.text || 'Menu';
+          await this.sock.sendMessage(chatId, { text: fallbackText });
+          return { success: true };
+        }
       } else {
-        // Fallback for other message types
+        // Standard message
         await this.sock.sendMessage(chatId, messagePayload);
+        return { success: true };
       }
-      return { success: true };
     } catch (error) {
       console.error(chalk.red('❌ Error sending interactive message:'), error.message);
+      
+      // Fallback: send plain text
+      try {
+        const fallbackText = messagePayload?.listMessage?.text 
+          || messagePayload?.interactive?.body?.text 
+          || messagePayload?.text 
+          || 'Menu';
+        
+        await this.sock.sendMessage(chatId, { text: fallbackText });
+      } catch (fallbackError) {
+        console.error(chalk.red('❌ Fallback message failed:'), fallbackError.message);
+      }
       return { success: false, error: error.message };
     }
   }
