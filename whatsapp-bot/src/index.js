@@ -42,6 +42,10 @@ const PrefixManager = require('./utils/prefixManager');
 const CustomerHandler = require('./handlers/customerHandler');
 const MerchantHandler = require('./handlers/merchantHandler');
 const AdminHandler = require('./handlers/adminHandler');
+const GroupManagementHandler = require('./handlers/groupManagementHandler');
+const FunAndGamesHandler = require('./handlers/funAndGamesHandler');
+const OtherHandler = require('./handlers/otherHandler');
+const SupportHandler = require('./handlers/supportHandler');
 
 class SmartWhatsAppBot {
   constructor() {
@@ -86,6 +90,10 @@ class SmartWhatsAppBot {
     this.customerHandler = null;
     this.merchantHandler = null;
     this.adminHandler = null;
+    this.groupManagementHandler = null;
+    this.funAndGamesHandler = null;
+    this.otherHandler = null;
+    this.supportHandler = null;
   }
 
   setupLogger() {
@@ -159,6 +167,10 @@ class SmartWhatsAppBot {
       this.customerHandler = CustomerHandler;
       this.merchantHandler = MerchantHandler;
       this.adminHandler = AdminHandler;
+      this.groupManagementHandler = GroupManagementHandler;
+      this.funAndGamesHandler = FunAndGamesHandler;
+      this.otherHandler = OtherHandler;
+      this.supportHandler = SupportHandler;
 
       // Inject messageService into handlers
       this.customerHandler.setMessageService(this.messageService);
@@ -167,6 +179,18 @@ class SmartWhatsAppBot {
       }
       if (this.adminHandler.setMessageService) {
         this.adminHandler.setMessageService(this.messageService);
+      }
+      if (this.groupManagementHandler && this.groupManagementHandler.setMessageService) {
+        this.groupManagementHandler.setMessageService(this.messageService);
+      }
+      if (this.funAndGamesHandler.setMessageService) {
+        this.funAndGamesHandler.setMessageService(this.messageService);
+      }
+      if (this.otherHandler && this.otherHandler.setMessageService) {
+        this.otherHandler.setMessageService(this.messageService);
+      }
+      if (this.supportHandler && this.supportHandler.setMessageService) {
+        this.supportHandler.setMessageService(this.messageService);
       }
 
       // Setup event handlers
@@ -448,6 +472,17 @@ class SmartWhatsAppBot {
         case 'orders':
           return await this.merchantHandler.handleMerchantCommand(command, args, from, cleanPhone);
 
+        // Fun and Games commands
+        case 'fun':
+        case 'fact':
+        case 'jokes':
+        case 'quotes':
+        case 'trivia':
+        case 'truthordare':
+        case 'truth':
+        case 'dare':
+          return await this.funAndGamesHandler.handleGameCommand(command, args, from, cleanPhone);
+
         // Group commands
         case 'groupmenu':
         case 'grouptools':
@@ -463,6 +498,25 @@ class SmartWhatsAppBot {
         case 'health':
         case 'logs':
           return await this.adminHandler.handleAdminCommand(command, args, from, cleanPhone);
+
+        // Other commands (status, time, runtime, etc)
+        case 'botstatus':
+        case 'status':
+        case 'ping':
+        case 'repo':
+        case 'runtime':
+        case 'time':
+        case 'currenttime':
+          return await this.otherHandler.handleOtherCommand(command, args, from, cleanPhone);
+
+        // Support commands (feedback, help, suggestions, bug reports)
+        case 'feedback':
+        case 'suggest':
+        case 'suggestion':
+        case 'report':
+        case 'bug':
+        case 'helpers':
+          return await this.supportHandler.handleSupportCommand(command, args, from, cleanPhone);
 
         default:
           return await this.messageService.sendTextMessage(

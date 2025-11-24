@@ -497,8 +497,43 @@ const commandRegistry = {
       fun: {
         name: 'Fun Menu',
         aliases: ['games', 'entertainment'],
-        description: 'View fun games',
+        description: 'View fun games menu',
         usage: '!fun',
+        category: 'entertainment'
+      },
+      fact: {
+        name: 'Random Fact',
+        aliases: ['facts', 'trivia_fact'],
+        description: 'Get an interesting fact',
+        usage: '!fact',
+        category: 'entertainment'
+      },
+      jokes: {
+        name: 'Jokes',
+        aliases: ['joke', 'laugh', 'humor'],
+        description: 'Get a funny joke',
+        usage: '!jokes',
+        category: 'entertainment'
+      },
+      quotes: {
+        name: 'Inspirational Quotes',
+        aliases: ['quote', 'motivation', 'inspire'],
+        description: 'Get inspirational quotes',
+        usage: '!quotes',
+        category: 'entertainment'
+      },
+      trivia: {
+        name: 'Trivia Quiz',
+        aliases: ['quiz', 'question', 'triviaquiz'],
+        description: 'Play trivia quiz game',
+        usage: '!trivia',
+        category: 'entertainment'
+      },
+      truthordare: {
+        name: 'Truth or Dare',
+        aliases: ['truth', 'dare', 'tod', 'truthordare_game'],
+        description: 'Play truth or dare game',
+        usage: '!truthordare',
         category: 'entertainment'
       },
       dice: {
@@ -522,27 +557,6 @@ const commandRegistry = {
         usage: '!lucky',
         category: 'entertainment'
       },
-      truth: {
-        name: 'Truth or Dare',
-        aliases: ['dare', 'tod'],
-        description: 'Play truth or dare',
-        usage: '!truth',
-        category: 'entertainment'
-      },
-      joke: {
-        name: 'Random Joke',
-        aliases: ['laugh', 'humor'],
-        description: 'Get a random joke',
-        usage: '!joke',
-        category: 'entertainment'
-      },
-      quote: {
-        name: 'Inspirational Quote',
-        aliases: ['motivation', 'inspire'],
-        description: 'Get inspirational quote',
-        usage: '!quote',
-        category: 'entertainment'
-      },
       riddle: {
         name: 'Riddle',
         aliases: ['puzzle'],
@@ -563,13 +577,6 @@ const commandRegistry = {
         aliases: ['wyr', 'either'],
         description: 'Would you rather question',
         usage: '!rather',
-        category: 'entertainment'
-      },
-      trivia: {
-        name: 'Trivia Quiz',
-        aliases: ['quiz', 'question'],
-        description: 'Play trivia quiz',
-        usage: '!trivia',
         category: 'entertainment'
       }
     }
@@ -772,6 +779,88 @@ const commandRegistry = {
         description: 'View bot logs',
         usage: '!logs [type]',
         category: 'owner'
+      }
+    }
+  },
+
+  // ===== OTHER COMMANDS =====
+  other: {
+    name: 'Other',
+    emoji: 'ℹ️',
+    commands: {
+      botstatus: {
+        name: 'Bot Status',
+        aliases: ['status', 'bot_health'],
+        description: 'Check bot status and health',
+        usage: '!botstatus',
+        category: 'other'
+      },
+      ping: {
+        name: 'Ping',
+        aliases: ['latency', 'response'],
+        description: 'Check bot response time',
+        usage: '!ping',
+        category: 'other'
+      },
+      repo: {
+        name: 'Repository',
+        aliases: ['github', 'source', 'repo_info'],
+        description: 'View repository information',
+        usage: '!repo',
+        category: 'other'
+      },
+      runtime: {
+        name: 'Runtime Info',
+        aliases: ['uptime', 'performance', 'stats'],
+        description: 'View runtime statistics',
+        usage: '!runtime',
+        category: 'other'
+      },
+      time: {
+        name: 'Current Time',
+        aliases: ['currenttime', 'clock', 'date'],
+        description: 'Get current time and date',
+        usage: '!time',
+        category: 'other'
+      }
+    }
+  },
+
+  // ===== SUPPORT COMMANDS =====
+  support: {
+    name: 'Support',
+    emoji: '🆘',
+    commands: {
+      feedback: {
+        name: 'Feedback',
+        aliases: ['review', 'rate', 'opinion'],
+        description: 'Send feedback about the bot',
+        usage: '!feedback [message]',
+        args: false,
+        category: 'support'
+      },
+      suggest: {
+        name: 'Suggestion',
+        aliases: ['suggestion', 'idea', 'feature_request'],
+        description: 'Make a suggestion',
+        usage: '!suggest <suggestion>',
+        args: true,
+        category: 'support'
+      },
+      report: {
+        name: 'Bug Report',
+        aliases: ['bug', 'issue', 'problem'],
+        description: 'Report a bug',
+        usage: '!report <bug_description>',
+        args: true,
+        category: 'support'
+      },
+      helpers: {
+        name: 'Help & Support',
+        aliases: ['support', 'help_center', 'faq'],
+        description: 'Get support and help resources',
+        usage: '!helpers',
+        category: 'support'
       }
     }
   }
