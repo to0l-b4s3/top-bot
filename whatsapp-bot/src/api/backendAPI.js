@@ -92,6 +92,10 @@ class BackendAPI {
    * === MERCHANT MANAGEMENT ===
    */
 
+  async getAllMerchants() {
+    return this.request('GET', '/api/merchants');
+  }
+
   async getMerchantProfile(merchantId) {
     return this.request('GET', `/api/merchants/${merchantId}`);
   }

@@ -268,11 +268,15 @@ class AuthHandler {
     const role = session?.role || 'customer';
 
     if (args[0]) {
-      return { message: this.getCommandHelp(args[0]) };
+      const helpText = this.getCommandHelp(args[0]);
+      await this.messageService.sendTextMessage(from, helpText);
+      return { success: true };
     }
 
     // Show role-based menu
-    return { message: MessageFormatter.formatMenu(role) };
+    const menuText = MessageFormatter.formatMenu(role);
+    await this.messageService.sendTextMessage(from, menuText);
+    return { success: true };
   }
 
   /**

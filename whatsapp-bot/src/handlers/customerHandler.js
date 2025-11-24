@@ -159,8 +159,21 @@ class CustomerHandler {
       { id: 'prod_006', name: 'Fresh Vegetables Pack', price: 800, rating: 4.8, reviews: 167, merchant: 'Farmers Market', image: '🥬' },
     ];
 
-    const response = await backendAPI.getProducts({});
-    const products = response?.success ? response.data.slice(0, 6) : dummyProducts;
+    let products = dummyProducts;
+    try {
+      // Try to fetch merchants first
+      const merchantsResp = await backendAPI.getAllMerchants();
+      if (merchantsResp?.success && Array.isArray(merchantsResp.data) && merchantsResp.data.length > 0) {
+        const merchantId = merchantsResp.data[0].id;
+        const response = await backendAPI.getProducts(merchantId);
+        if (response?.success && Array.isArray(response.data)) {
+          products = response.data.slice(0, 6);
+        }
+      }
+    } catch (error) {
+      console.log('✅ Using fallback products for menu');
+      // Keep using dummyProducts
+    }
 
     // Create interactive list message with product menu
     const sections = [{
