@@ -34,6 +34,10 @@ const UtilityCommandHandler = require('./services/utilityCommandHandler');
 const AdvancedAdminHandler = require('./services/advancedAdminHandler');
 const InteractiveMessageHandler = require('./services/interactiveMessageHandler');
 
+// Import utilities
+const CommandParser = require('./utils/commandParser');
+const PrefixManager = require('./utils/prefixManager');
+
 // Import existing handlers
 const CustomerHandler = require('./handlers/customerHandler');
 const MerchantHandler = require('./handlers/merchantHandler');
@@ -320,8 +324,8 @@ class SmartWhatsAppBot {
         console.log(chalk.cyan('➡️  Forwarded message received'));
       }
 
-      // Process text commands
-      if (text.startsWith(this.prefix)) {
+      // Process text commands using multi-prefix support
+      if (PrefixManager.isCommand(text)) {
         await this.handleCommand(text, from, phoneNumber, cleanPhone, isGroup, message);
       } else if (text.length > 0) {
         // Natural language processing for non-command messages
@@ -333,15 +337,17 @@ class SmartWhatsAppBot {
   }
 
   /**
-   * Handle commands with prefix
+   * Handle commands with any valid prefix
    */
   async handleCommand(text, from, phoneNumber, cleanPhone, isGroup, message) {
     try {
-      const args = text.slice(this.prefix.length).trim().split(/\s+/);
-      const command = args[0]?.toLowerCase();
-      const params = args.slice(1);
+      // Parse command with multi-prefix support
+      const parsed = PrefixManager.parseCommand(text);
+      if (!parsed) return;
 
-      console.log(chalk.blue(`📝 Command: ${command}`), chalk.gray(`from ${cleanPhone}`));
+      const { prefix, command, args } = parsed;
+
+      console.log(chalk.blue(`📝 Command: ${command}`), chalk.gray(`from ${cleanPhone}`), chalk.yellow(`[${prefix}]`));
 
       // Smart reaction based on command type
       const reactionMap = {
@@ -375,7 +381,7 @@ class SmartWhatsAppBot {
         case 'stats':
         case 'join':
         case 'feedback':
-          return await this.utilityCommandHandler.handle(command, params, from, text);
+          return await this.utilityCommandHandler.handle(command, args, from, text);
 
         // Advanced admin commands
         case 'broadcast':
@@ -398,7 +404,7 @@ class SmartWhatsAppBot {
         case 'sendtemplate':
         case 'getdb':
         case 'log':
-          return await this.advancedAdminHandler.handle(command, params, from, cleanPhone);
+          return await this.advancedAdminHandler.handle(command, args, from, cleanPhone);
 
         // Customer commands
         case 'menu':
@@ -410,7 +416,7 @@ class SmartWhatsAppBot {
         case 'search':
         case 'categories':
         case 'nearby':
-          return await this.customerHandler.handleCustomerCommand(command, params, from, cleanPhone);
+          return await this.customerHandler.handleCustomerCommand(command, args, from, cleanPhone);
 
         // Merchant commands
         case 'dashboard':
@@ -421,14 +427,14 @@ class SmartWhatsAppBot {
         case 'inventory':
         case 'analytics':
         case 'orders':
-          return await this.merchantHandler.handleMerchantCommand(command, params, from, cleanPhone);
+          return await this.merchantHandler.handleMerchantCommand(command, args, from, cleanPhone);
 
         // Admin commands
         case 'merchants':
         case 'platform':
         case 'health':
         case 'logs':
-          return await this.adminHandler.handleAdminCommand(command, params, from, cleanPhone);
+          return await this.adminHandler.handleAdminCommand(command, args, from, cleanPhone);
 
         default:
           return await this.messageService.sendTextMessage(

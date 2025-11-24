@@ -12,6 +12,7 @@ const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
 const FlowManager = require('../utils/flowManager');
 const WorldClassResponses = require('../utils/worldClassResponses');
 const Logger = require('../config/logger');
+const CommandRegistry = require('../registry/commandRegistry');
 
 const logger = new Logger('CustomerHandler');
 
@@ -106,6 +107,22 @@ class CustomerHandler {
         case 'featured':
           return await this.handleFeaturedCommand(phoneNumber, from);
         
+        // Category menus
+        case 'shoppingmenu':
+          return await this.handleCategoryMenu('shopping', from);
+        
+        case 'cartmenu':
+          return await this.handleCategoryMenu('cart', from);
+        
+        case 'ordermenu':
+          return await this.handleCategoryMenu('orders', from);
+        
+        case 'accountmenu':
+          return await this.handleCategoryMenu('account', from);
+        
+        case 'dealmenu':
+          return await this.handleCategoryMenu('deals', from);
+        
         default:
           return null;
       }
@@ -113,6 +130,20 @@ class CustomerHandler {
       logger.error('Customer command error', error);
       return { error: error.message };
     }
+  }
+
+  /**
+   * Handle category menus
+   */
+  async handleCategoryMenu(categoryKey, from) {
+    const menuPayload = CommandRegistry.createCategoryInteractiveMenu(categoryKey);
+    if (!menuPayload) {
+      await this.messageService.sendTextMessage(from, '❌ Category not found');
+      return { success: true };
+    }
+
+    await this.messageService.sendInteractiveMessage(from, { listMessage: menuPayload });
+    return { success: true };
   }
 
   /**

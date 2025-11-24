@@ -7,6 +7,8 @@ const chalk = require('chalk');
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
+const CommandRegistry = require('../registry/commandRegistry');
+const PrefixManager = require('../utils/prefixManager');
 
 class UtilityCommandHandler {
   constructor(bot, messageService) {
@@ -77,50 +79,9 @@ class UtilityCommandHandler {
   }
 
   async showMenu(from) {
-    const menuText = `
-╔════════════════════════════════════════════╗
-║         📱 SMART BOT - MAIN MENU          ║
-╚════════════════════════════════════════════╝
-
-🛍️  *SHOPPING COMMANDS*
-├─ !menu - Show this menu
-├─ !help [command] - Get help on a command
-├─ !products - Browse products
-├─ !order <items> - Place an order
-├─ !cart - View your shopping cart
-├─ !checkout - Proceed to payment
-├─ !status - Check order status
-
-💼 *MERCHANT COMMANDS*
-├─ !dashboard - View business dashboard
-├─ !billing - View billing info
-├─ !inventory - Check inventory
-├─ !commission - View commissions
-├─ !payout - Request payout
-├─ !subscription - Manage subscription
-├─ !analytics - Business analytics
-
-👨‍💼 *ADMIN COMMANDS*
-├─ !merchants - Manage merchants
-├─ !broadcast - Send broadcast message
-├─ !stats - Platform statistics
-├─ !block <number> - Block a user
-├─ !unblock <number> - Unblock a user
-
-ℹ️  *INFORMATION*
-├─ !about - About this bot
-├─ !ping - Check bot status
-├─ !uptime - Bot uptime
-├─ !support - Get support
-├─ !donate - Support the project
-├─ !terms - Terms of Service
-├─ !privacy - Privacy Policy
-├─ !source - Source code
-
-Type ${this.bot.prefix}help <command> for more info!
-    `;
-
-    return await this.messageService.sendTextMessage(from, menuText);
+    const menuPayload = CommandRegistry.createMainMenu();
+    await this.messageService.sendInteractiveMessage(from, { listMessage: menuPayload });
+    return { success: true };
   }
 
   async showHelp(from, command) {
@@ -128,12 +89,35 @@ Type ${this.bot.prefix}help <command> for more info!
       return await this.showMenu(from);
     }
 
-    const helpText = this.getCommandHelp(command);
-    if (!helpText) {
-      return await this.messageService.sendTextMessage(from, `❌ No help found for command: ${command}`);
+    const cmd = CommandRegistry.findCommand(command);
+    if (!cmd) {
+      const errorMsg = `❌ *COMMAND NOT FOUND*
+
+"${command}" is not a valid command.
+
+Type !help to see all commands.`;
+      return await this.messageService.sendRichMessage(from, errorMsg, {
+        title: '❌ Command Not Found',
+        description: 'Check the command name and try again',
+        sourceUrl: 'https://smart-bot.io/help'
+      });
     }
 
-    return await this.messageService.sendTextMessage(from, helpText);
+    const helpText = `${cmd.emoji || '•'} *${cmd.name.toUpperCase()}*
+
+📝 Description: ${cmd.description}
+
+💻 Usage: \`${cmd.usage}\`
+
+${cmd.aliases && cmd.aliases.length > 0 ? `⚡ Aliases: ${cmd.aliases.map(a => `\`!${a}\``).join(', ')}` : ''}
+
+💡 Category: ${cmd.categoryKey}`;
+
+    return await this.messageService.sendRichMessage(from, helpText, {
+      title: cmd.name,
+      description: cmd.description,
+      sourceUrl: 'https://smart-bot.io/help'
+    });
   }
 
   getCommandHelp(command) {
@@ -293,14 +277,29 @@ Built with ❤️ for Zimbabwe & South Africa
   }
 
   async changePrefix(from, newPrefix) {
-    if (!newPrefix || newPrefix.length > 1) {
+    if (!newPrefix) {
+      const prefixMsg = PrefixManager.getPrefixInfoMessage();
+      return await this.messageService.sendRichMessage(from, prefixMsg, {
+        title: '🔤 Prefix Settings',
+        description: 'Change your command prefix',
+        sourceUrl: 'https://smart-bot.io/settings'
+      });
+    }
+
+    if (newPrefix.length > 1) {
       return await this.messageService.sendTextMessage(from, '❌ Prefix must be a single character (e.g., !, #, $)');
     }
 
-    this.bot.prefix = newPrefix;
-    process.env.BOT_PREFIX = newPrefix;
+    const result = await PrefixManager.setUserPrefix(from, newPrefix);
+    if (!result.success) {
+      return await this.messageService.sendTextMessage(from, `❌ ${result.error}`);
+    }
 
-    return await this.messageService.sendTextMessage(from, `✅ Prefix changed to: ${newPrefix}`);
+    return await this.messageService.sendRichMessage(from, `✅ *PREFIX CHANGED*\n\nNew prefix: ${newPrefix}\n\nExample: ${newPrefix}menu`, {
+      title: '✅ Prefix Updated',
+      description: `Now use ${newPrefix} as your prefix`,
+      sourceUrl: 'https://smart-bot.io/settings'
+    });
   }
 
   async showSource(from) {
