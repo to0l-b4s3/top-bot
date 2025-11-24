@@ -489,8 +489,7 @@ class SmartWhatsAppBot {
         case 'groupinfo':
         case 'memberlist':
         case 'groupstats':
-          return await this.groupManagementHandler?.handleGroupCommand(command, args, from, cleanPhone, isGroup) || 
-                 await this.messageService.sendTextMessage(from, '❌ Group commands not available');
+          return await this.groupManagementHandler.handleGroupCommand(command, args, from, cleanPhone, isGroup);
 
         // Admin commands
         case 'merchants':
@@ -517,6 +516,12 @@ class SmartWhatsAppBot {
         case 'bug':
         case 'helpers':
           return await this.supportHandler.handleSupportCommand(command, args, from, cleanPhone);
+
+        // Owner/Admin restricted commands
+        case 'owner':
+        case 'eval':
+        case 'exec':
+          return await this.messageService.sendTextMessage(from, '🔒 Admin privileges required');
 
         default:
           return await this.messageService.sendTextMessage(

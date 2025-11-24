@@ -20,11 +20,10 @@ class MessageService {
    */
   async sendButtonMessage(chatId, bodyText, buttons, footerText = '', headerText = '') {
     try {
-      // Baileys v7 format for button messages
+      // Baileys v6 format for button messages
       const buttonPayload = {
         body: { text: bodyText },
         footer: { text: footerText || 'Smart Bot' },
-        header: headerText ? { text: headerText } : undefined,
         nativeFlowMessage: {
           buttons: buttons.map((btn, idx) => ({
             name: 'quick_reply',
@@ -72,7 +71,10 @@ class MessageService {
         }
       };
 
-      await this.sock.sendMessage(chatId, { interactive: { nativeFlowMessage: { buttons: [], messageParamsJson: JSON.stringify(listMessage) } } });
+      // Baileys v6 format for list messages
+      await this.sock.sendMessage(chatId, { 
+        interactive: listMessage
+      });
       return { success: true };
     } catch (error) {
       console.error(chalk.red('❌ Error sending list message:'), error.message);
@@ -402,11 +404,11 @@ END:VCARD`;
    */
   async sendInteractiveMessage(chatId, messagePayload) {
     try {
-      // If payload has listMessage, convert to proper Baileys v7 format
+      // If payload has listMessage, convert to proper Baileys v6 format
       if (messagePayload.listMessage) {
         const listMsg = messagePayload.listMessage;
         
-        // Transform sections and rows to use proper Baileys v7 format
+        // Transform sections and rows to use proper Baileys v6 format
         const sections = Array.isArray(listMsg.sections) 
           ? listMsg.sections.map((section, sIdx) => ({
               title: section.title,
@@ -420,23 +422,19 @@ END:VCARD`;
             }))
           : [];
 
-        const formattedPayload = {
-          body: { text: listMsg.text || '' },
-          footer: { text: listMsg.footer || 'Smart Bot' },
-          sections: sections,
-          action: {
-            button: listMsg.buttonText || 'Select Option'
+        // Baileys v6 compatible list message format
+        const interactiveMessage = {
+          interactive: {
+            body: { text: listMsg.text || '' },
+            footer: { text: listMsg.footer || 'Smart Bot' },
+            sections: sections,
+            action: {
+              button: listMsg.buttonText || 'Select Option'
+            }
           }
         };
 
-        await this.sock.sendMessage(chatId, {
-          interactive: {
-            nativeFlowMessage: {
-              buttons: [],
-              messageParamsJson: JSON.stringify(formattedPayload)
-            }
-          }
-        });
+        await this.sock.sendMessage(chatId, interactiveMessage);
       } else if (messagePayload.interactive) {
         // Already in proper format, send as-is
         await this.sock.sendMessage(chatId, messagePayload);

@@ -368,6 +368,34 @@ class GroupManagementHandler {
     if (memberCount > 10) return 'Low 📉';
     return 'Very Low 🔼';
   }
+
+  /**
+   * Main command handler - routes group commands
+   */
+  async handleGroupCommand(command, args, from, cleanPhone, isGroup = false) {
+    try {
+      switch (command) {
+        case 'groupmenu':
+        case 'grouptools':
+          return await this.handleGroupToolsCommand(null, from, isGroup);
+        case 'groupinfo':
+          return await this.handleGroupInfoCommand(null, from, {});
+        case 'memberlist':
+          return await this.handleMemberListCommand(null, from, {});
+        case 'groupstats':
+          return await this.handleGroupStatsCommand(null, from, {});
+        default:
+          return { text: '❌ Unknown group command' };
+      }
+    } catch (error) {
+      return { text: `❌ Group command error: ${error.message}` };
+    }
+  }
+
+  setMessageService(messageService) {
+    this.messageService = messageService;
+  }
 }
 
-module.exports = GroupManagementHandler;
+// Export as singleton instance
+module.exports = new GroupManagementHandler();
