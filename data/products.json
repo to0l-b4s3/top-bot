@@ -1,0 +1,41 @@
+[
+  {
+    "id": "prod-1763986533097",
+    "merchant_id": "merchant-1732446478934",
+    "name": "Test Product",
+    "description": "",
+    "price": 99.99,
+    "category": "Test",
+    "stock": 10,
+    "image_url": "",
+    "is_active": true,
+    "created_at": "2025-11-24T12:15:33.097Z",
+    "updated_at": "2025-11-24T12:15:33.097Z"
+  },
+  {
+    "id": "prod-1763986547472",
+    "merchant_id": "merchant-1732446478934",
+    "name": "Test Product",
+    "description": "",
+    "price": 99.99,
+    "category": "Test",
+    "stock": 10,
+    "image_url": "",
+    "is_active": true,
+    "created_at": "2025-11-24T12:15:47.472Z",
+    "updated_at": "2025-11-24T12:15:47.472Z"
+  },
+  {
+    "id": "prod-1763986556734",
+    "merchant_id": "merchant-1732446478934",
+    "name": "Test Product",
+    "description": "",
+    "price": 99.99,
+    "category": "Test",
+    "stock": 10,
+    "image_url": "",
+    "is_active": true,
+    "created_at": "2025-11-24T12:15:56.734Z",
+    "updated_at": "2025-11-24T12:15:56.734Z"
+  }
+]

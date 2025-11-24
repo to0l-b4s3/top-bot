@@ -1,0 +1,35 @@
+[
+  {
+    "id": "merchant-1763986533058",
+    "phone_number": "1234567890",
+    "store_name": "Test Store",
+    "category": "General",
+    "description": "",
+    "location": "",
+    "status": "pending",
+    "created_at": "2025-11-24T12:15:33.058Z",
+    "updated_at": "2025-11-24T12:15:33.058Z"
+  },
+  {
+    "id": "merchant-1763986547428",
+    "phone_number": "1234567890",
+    "store_name": "Test Store",
+    "category": "General",
+    "description": "",
+    "location": "",
+    "status": "pending",
+    "created_at": "2025-11-24T12:15:47.428Z",
+    "updated_at": "2025-11-24T12:15:47.428Z"
+  },
+  {
+    "id": "merchant-1763986556694",
+    "phone_number": "1234567890",
+    "store_name": "Test Store",
+    "category": "General",
+    "description": "",
+    "location": "",
+    "status": "pending",
+    "created_at": "2025-11-24T12:15:56.694Z",
+    "updated_at": "2025-11-24T12:15:56.694Z"
+  }
+]
