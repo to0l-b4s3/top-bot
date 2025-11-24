@@ -360,8 +360,7 @@ class SmartWhatsAppBot {
 
       // Route to appropriate handler
       switch (command) {
-        // Utility commands
-        case 'menu':
+        // Utility commands (excluding menu which is a customer command)
         case 'help':
         case 'about':
         case 'ping':
@@ -402,11 +401,15 @@ class SmartWhatsAppBot {
           return await this.advancedAdminHandler.handle(command, params, from, cleanPhone);
 
         // Customer commands
+        case 'menu':
+        case 'm':
         case 'order':
         case 'cart':
         case 'checkout':
         case 'products':
         case 'search':
+        case 'categories':
+        case 'nearby':
           return await this.customerHandler.handleCustomerCommand(command, params, from, cleanPhone);
 
         // Merchant commands
