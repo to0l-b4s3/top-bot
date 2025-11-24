@@ -405,17 +405,25 @@ END:VCARD`;
       // If payload has listMessage, convert to proper Baileys v7 format
       if (messagePayload.listMessage) {
         const listMsg = messagePayload.listMessage;
+        
+        // Transform sections and rows to use proper Baileys v7 format
+        const sections = Array.isArray(listMsg.sections) 
+          ? listMsg.sections.map((section, sIdx) => ({
+              title: section.title,
+              rows: Array.isArray(section.rows) 
+                ? section.rows.map((row) => ({
+                    id: row.id || row.rowId || `row_${Date.now()}_${Math.random()}`,
+                    title: row.title || '',
+                    description: row.description || ''
+                  }))
+                : []
+            }))
+          : [];
+
         const formattedPayload = {
           body: { text: listMsg.text || '' },
           footer: { text: listMsg.footer || 'Smart Bot' },
-          sections: Array.isArray(listMsg.sections) ? listMsg.sections.map((section, sIdx) => ({
-            title: section.title,
-            rows: Array.isArray(section.rows) ? section.rows.map((row, rowIdx) => ({
-              id: `row_${sIdx}_${rowIdx}`,
-              title: row.title,
-              description: row.description || ''
-            })) : []
-          })) : [],
+          sections: sections,
           action: {
             button: listMsg.buttonText || 'Select Option'
           }

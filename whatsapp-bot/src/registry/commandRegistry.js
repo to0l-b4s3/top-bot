@@ -562,7 +562,7 @@ const CommandRegistry = {
     if (!category) return null;
 
     const rows = Object.entries(category.commands).map(([key, cmd], idx) => ({
-      rowId: `cmd_${key}`,
+      id: `cmd_${key}`,
       title: `${cmd.name}`,
       description: cmd.description
     }));
@@ -585,7 +585,7 @@ const CommandRegistry = {
   createMainMenu() {
     const categories = commandRegistry;
     const rows = Object.entries(categories).map(([key, cat]) => ({
-      rowId: `cat_${key}`,
+      id: `cat_${key}`,
       title: `${cat.emoji} ${cat.name}`,
       description: `${Object.keys(cat.commands).length} commands`
     }));
