@@ -1,16 +1,60 @@
 /**
  * Interactive Message Builder
- * Builds structured interactive messages with buttons, lists, footers, and contact cards
- * Follows WhatsApp's interactive message format
+ * Builds structured interactive messages with buttons, lists, footers
+ * Fully compatible with Baileys v7 proto-based messages
  */
 
 class InteractiveMessageBuilder {
   /**
-   * Build button message
-   * @param {string} header - Header text
-   * @param {string} body - Body text
-   * @param {array} buttons - Array of buttons
-   * @param {string} footer - Footer text (optional)
+   * Build button message payload for sendButtonMessage
+   * @param {string} bodyText - Body text
+   * @param {array} buttons - Array of buttons [{text, id, url}]
+   * @param {string} footerText - Footer text (optional)
+   */
+  static buttonPayload(bodyText, buttons = [], footerText = '') {
+    return {
+      buttonMessage: {
+        text: bodyText,
+        footer: footerText || '━━━━━━━━━━━━━━━',
+        buttons: buttons.map((btn, idx) => ({
+          text: btn.text || btn.label || `Button ${idx + 1}`,
+          id: btn.id || `btn_${idx}`,
+          url: btn.url || '#',
+          label: btn.text || btn.label || `Button ${idx + 1}`
+        }))
+      }
+    };
+  }
+
+  /**
+   * Build list message payload for sendListMessage
+   * @param {string} bodyText - Body text
+   * @param {array} sections - Array of sections [{title, rows: [{title, description, id}]}]
+   * @param {string} buttonText - Button text to show (e.g., "Select an option")
+   * @param {string} footerText - Footer text (optional)
+   */
+  static listPayload(bodyText, sections = [], buttonText = 'Select an option', footerText = '') {
+    return {
+      listMessage: {
+        text: bodyText,
+        footer: footerText || '━━━━━━━━━━━━━━━',
+        buttonText: buttonText,
+        sections: sections.map(section => ({
+          title: section.title || 'Options',
+          rows: (section.rows || []).map((row, idx) => ({
+            rowId: row.id || `row_${idx}`,
+            title: row.title || `Option ${idx + 1}`,
+            description: row.description || '',
+            rowImage: row.image || null
+          }))
+        }))
+      }
+    };
+  }
+
+  /**
+   * Build button message (backward compatibility)
+   * @deprecated Use buttonPayload instead
    */
   static buttonMessage(header, body, buttons = [], footer = '') {
     return {
@@ -27,11 +71,8 @@ class InteractiveMessageBuilder {
   }
 
   /**
-   * Build list message
-   * @param {string} header - Header text
-   * @param {string} body - Body text
-   * @param {array} sections - Array of sections with title and rows
-   * @param {string} footer - Footer text (optional)
+   * Build list message (backward compatibility)
+   * @deprecated Use listPayload instead
    */
   static listMessage(header, body, sections = [], footer = '') {
     return {
@@ -52,220 +93,145 @@ class InteractiveMessageBuilder {
   }
 
   /**
-   * Build template button message
-   * @param {string} body - Body text
-   * @param {array} buttons - Array of template buttons with action
-   * @param {string} footer - Footer text (optional)
-   */
-  static templateButtonMessage(body, buttons = [], footer = '') {
-    return {
-      type: 'template',
-      body,
-      buttons: buttons.map((btn, idx) => ({
-        buttonId: btn.id || `template_btn_${idx}`,
-        buttonText: { displayText: btn.text || btn.label || `Action ${idx + 1}` },
-        type: btn.type || 1
-      })),
-      footer: footer || ''
-    };
-  }
-
-  /**
-   * Build contact card
-   * @param {object} contact - Contact object with name, phone, role, etc.
-   */
-  static contactCard(contact = {}) {
-    return {
-      type: 'contact',
-      displayName: contact.name || 'Contact',
-      vcard: `BEGIN:VCARD
-VERSION:3.0
-FN:${contact.name || 'Contact'}
-TEL:${contact.phone || ''}
-ROLE:${contact.role || ''}
-ORG:${contact.org || ''}
-END:VCARD`
-    };
-  }
-
-  /**
-   * Build quick reply message with buttons
-   * @param {string} text - Message text
-   * @param {array} quickReplies - Array of quick reply buttons
-   * @param {string} footer - Footer text (optional)
-   */
-  static quickReplyMessage(text, quickReplies = [], footer = '') {
-    return {
-      type: 'quickReply',
-      text,
-      quickReplyButtons: quickReplies.map((reply, idx) => ({
-        buttonId: reply.id || `quick_${idx}`,
-        buttonText: { displayText: reply.text || reply.label || `Reply ${idx + 1}` },
-        type: 1
-      })),
-      footer: footer || ''
-    };
-  }
-
-  /**
-   * Build rich text message with formatting
-   * @param {string} title - Title
-   * @param {string} body - Rich body text
-   * @param {string} image - Image URL (optional)
-   * @param {array} buttons - Action buttons (optional)
-   */
-  static richTextMessage(title, body, image = null, buttons = []) {
-    return {
-      type: 'richText',
-      title,
-      body,
-      image,
-      buttons: buttons.map((btn, idx) => ({
-        buttonId: btn.id || `rich_btn_${idx}`,
-        buttonText: { displayText: btn.text || btn.label || `Action ${idx + 1}` },
-        type: 1
-      }))
-    };
-  }
-
-  /**
-   * Create a menu-style message
+   * Create a menu-style message with sections
+   * @param {string} title - Menu title
+   * @param {string} description - Menu description
+   * @param {array} menuItems - Menu items [{emoji, title, description, id}]
+   * @param {string} footer - Footer text
    */
   static createMenu(title, description, menuItems = [], footer = '') {
-    return {
-      type: 'list',
-      header: `${title}`,
-      body: description,
-      footer: footer || 'Select an option below',
-      sections: [{
+    return this.listPayload(
+      `*${title}*\n${description}`,
+      [{
         title: 'Options',
         rows: menuItems.map((item, idx) => ({
-          rowId: item.id || `menu_${idx}`,
+          id: item.id || `menu_${idx}`,
           title: `${item.emoji || '•'} ${item.title}`,
           description: item.description || item.subtitle || '',
-          rowImage: item.image || null
+          image: item.image || null
         }))
-      }]
-    };
+      }],
+      'Select an option',
+      footer || 'Choose from the options above'
+    );
   }
 
   /**
-   * Create a status/info card
+   * Create a simple select menu
+   * @param {string} text - Menu text
+   * @param {array} options - Options [{text, id, description}]
+   * @param {string} footer - Footer
    */
-  static createStatusCard(title, items = [], actionButtons = [], footer = '') {
-    let body = `*${title}*\n━━━━━━━━━━━━━━━\n\n`;
-    items.forEach(item => {
-      body += `${item.emoji || '•'} ${item.label}: ${item.value}\n`;
-    });
+  static selectMenu(text, options = [], footer = '') {
+    return this.listPayload(
+      text,
+      [{
+        title: 'Select',
+        rows: options.map((opt, idx) => ({
+          id: opt.id || `opt_${idx}`,
+          title: opt.text || `Option ${idx + 1}`,
+          description: opt.description || ''
+        }))
+      }],
+      'Choose an option',
+      footer
+    );
+  }
 
-    return {
-      type: 'template',
-      body: body.trim(),
-      buttons: actionButtons.map((btn, idx) => ({
-        buttonId: btn.id || `status_btn_${idx}`,
-        buttonText: { displayText: btn.text || btn.label || `Action ${idx + 1}` },
-        type: 1
+  /**
+   * Create product menu from products array
+   * @param {array} products - Products [{id, name, price, image}]
+   * @param {string} header - Header text
+   */
+  static productMenu(products = [], header = 'Available Products') {
+    return this.listPayload(
+      header,
+      [{
+        title: 'Products',
+        rows: (products || []).slice(0, 10).map((product, idx) => ({
+          id: product.id || `prod_${idx}`,
+          title: product.name || `Product ${idx + 1}`,
+          description: `$${product.price || 0}${product.category ? ' • ' + product.category : ''}`,
+          image: product.image_url || product.image || null
+        }))
+      }],
+      'Select Product',
+      `Showing ${Math.min(10, (products || []).length)} products`
+    );
+  }
+
+  /**
+   * Create category menu
+   * @param {array} categories - Categories array
+   */
+  static categoryMenu(categories = []) {
+    return this.listPayload(
+      '🛍️ *Select Category*\nChoose a category to browse',
+      [{
+        title: 'Categories',
+        rows: categories.map((cat, idx) => ({
+          id: cat.id || `cat_${idx}`,
+          title: `${cat.emoji || '📦'} ${cat.name}`,
+          description: `${cat.count || 0} items`,
+          image: cat.image || null
+        }))
+      }],
+      'Browse Category',
+      'Categories'
+    );
+  }
+
+  /**
+   * Create cart menu
+   * @param {array} items - Cart items [{name, quantity, price}]
+   * @param {number} total - Total price
+   */
+  static cartMenu(items = [], total = 0) {
+    const itemText = items.map((item, idx) => 
+      `${idx + 1}. ${item.name} (x${item.quantity}) - $${(item.price * item.quantity).toFixed(2)}`
+    ).join('\n');
+
+    return this.selectMenu(
+      `🛒 *Your Cart*\n\n${itemText || 'Your cart is empty'}\n\n*Total: $${total.toFixed(2)}*`,
+      [
+        { id: 'checkout', text: '✅ Checkout', description: 'Proceed to payment' },
+        { id: 'continue_shopping', text: '🛍️ Continue Shopping', description: 'Back to menu' },
+        { id: 'clear_cart', text: '🗑️ Clear Cart', description: 'Remove all items' }
+      ],
+      'What would you like to do?'
+    );
+  }
+
+  /**
+   * Create quick actions menu
+   * @param {array} actions - Actions [{text, id, emoji, description}]
+   */
+  static quickActions(actions = []) {
+    return this.selectMenu(
+      '⚡ *Quick Actions*\nChoose an action:',
+      actions.map((action, idx) => ({
+        id: action.id || `action_${idx}`,
+        text: `${action.emoji || '•'} ${action.text}`,
+        description: action.description || ''
       })),
-      footer: footer || ''
-    };
+      'Select an action'
+    );
   }
 
   /**
-   * Create a product card with quick actions
+   * Create order status menu
+   * @param {array} orders - Orders [{id, status, date, total}]
    */
-  static createProductCard(product = {}) {
-    const image = product.image || '📦';
-    const rating = '⭐'.repeat(Math.floor(product.rating || 4));
-
-    let body = `${image} *${product.name || 'Product'}*\n`;
-    body += `💰 ZWL ${(product.price || 0).toFixed(2)}\n`;
-    body += `${rating} (${product.reviews || 0} reviews)\n`;
-    body += `🏪 ${product.merchant || 'Merchant'}\n\n`;
-    body += product.description || '';
-
-    return {
-      type: 'template',
-      body: body.trim(),
-      buttons: [
-        { buttonId: `add_${product.id}`, buttonText: { displayText: '🛒 Add to Cart' }, type: 1 },
-        { buttonId: `view_${product.id}`, buttonText: { displayText: 'ℹ️ Details' }, type: 1 }
-      ],
-      footer: '━━━━━━━━━━━━━━━'
-    };
-  }
-
-  /**
-   * Create an order summary card
-   */
-  static createOrderSummary(order = {}) {
-    let body = `📦 *Order ${order.id}*\n`;
-    body += `━━━━━━━━━━━━━━━\n\n`;
-    body += `🏪 ${order.merchant || 'Merchant'}\n`;
-    body += `💰 Total: ZWL ${(order.total || 0).toFixed(2)}\n`;
-    body += `📍 Status: ${order.status || 'Pending'}\n`;
-    body += `⏰ Date: ${order.date || new Date().toLocaleDateString()}\n\n`;
-    
-    if (order.items && order.items.length > 0) {
-      body += `📋 Items:\n`;
-      order.items.slice(0, 3).forEach(item => {
-        body += `  • ${item.name} x${item.quantity}\n`;
-      });
-      if (order.items.length > 3) {
-        body += `  ... and ${order.items.length - 3} more\n`;
-      }
-    }
-
-    return {
-      type: 'template',
-      body: body.trim(),
-      buttons: [
-        { buttonId: `track_${order.id}`, buttonText: { displayText: '📍 Track' }, type: 1 },
-        { buttonId: `reorder_${order.id}`, buttonText: { displayText: '🔄 Reorder' }, type: 1 }
-      ],
-      footer: '━━━━━━━━━━━━━━━'
-    };
-  }
-
-  /**
-   * Create error message with recovery options
-   */
-  static createErrorCard(error = '', suggestions = []) {
-    let body = `❌ *Error*\n━━━━━━━━━━━━━━━\n\n${error}\n\n`;
-
-    if (suggestions.length > 0) {
-      body += `💡 *Try:*\n`;
-      suggestions.forEach(suggestion => {
-        body += `  • ${suggestion}\n`;
-      });
-    }
-
-    return {
-      type: 'template',
-      body: body.trim(),
-      buttons: [
-        { buttonId: 'help', buttonText: { displayText: '❓ Get Help' }, type: 1 },
-        { buttonId: 'menu', buttonText: { displayText: '📋 Menu' }, type: 1 }
-      ],
-      footer: 'Contact support if issue persists'
-    };
-  }
-
-  /**
-   * Create success confirmation
-   */
-  static createSuccessCard(title = 'Success!', message = '', nextActions = []) {
-    let body = `✅ *${title}*\n━━━━━━━━━━━━━━━\n\n${message}`;
-
-    return {
-      type: 'template',
-      body: body.trim(),
-      buttons: nextActions.map((action, idx) => ({
-        buttonId: action.id || `action_${idx}`,
-        buttonText: { displayText: action.text || action.label || `Action ${idx + 1}` },
-        type: 1
+  static ordersMenu(orders = []) {
+    return this.selectMenu(
+      '📦 *Your Orders*\nSelect an order to view details:',
+      (orders || []).slice(0, 10).map((order, idx) => ({
+        id: order.id || `order_${idx}`,
+        text: `Order #${order.id?.slice(-4) || idx + 1}`,
+        description: `${order.status} • $${order.total?.toFixed(2) || '0.00'} • ${order.date || 'Recent'}`
       })),
-      footer: 'Thank you!'
-    };
+      'View Details'
+    );
   }
 }
 

@@ -22,7 +22,7 @@
     "@hapi/boom": "^10.0.1",
     "@rodrigogs/baileys-store": "^1.1.0",
     "@supabase/supabase-js": "^2.38.5",
-    "@whiskeysockets/baileys": "^6.7.0",
+    "@whiskeysockets/baileys": "7.0.0-rc.9",
     "axios": "^1.13.0",
     "bullmq": "^5.64.0",
     "chalk": "^4.1.2",

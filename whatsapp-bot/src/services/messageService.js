@@ -1,21 +1,22 @@
 /**
  * Message Service
  * Handles all message types: buttons, lists, templates, reactions, etc.
- * Compatible with Baileys v7 (uses standard sendMessage API)
+ * Fully compatible with Baileys v7 with proto-based interactive messages
  */
 
 const chalk = require('chalk');
+const { Browsers, generateWAMessageFromContent, proto } = require('@whiskeysockets/baileys');
 
 class MessageService {
-  constructor(socket, generateWAMessageFromContent = null) {
+  constructor(socket, generateWAMessageFromContent_optional = null) {
     this.sock = socket;
-    // v7 doesn't need this, but keep for backward compatibility
+    // Baileys v7 has generateWAMessageFromContent built-in
     this.generateWAMessageFromContent = generateWAMessageFromContent;
   }
 
   /**
-   * Send Interactive Button Message (Baileys v7 compatible)
-   * Sends buttons as formatted text menu since v7 doesn't support complex button UI
+   * Send Interactive Button Message (Baileys v7 - Proto based)
+   * Sends native WhatsApp buttons that work on all devices
    * @param {string} chatId - Recipient chat ID
    * @param {string} bodyText - Body text
    * @param {array} buttons - Array of button objects {text, id}
@@ -24,38 +25,64 @@ class MessageService {
    */
   async sendButtonMessage(chatId, bodyText, buttons, footerText = '', headerText = '') {
     try {
-      // Baileys v7: Format buttons as numbered text menu
-      let menuText = (bodyText || '') + '\n\n';
-      
-      if (Array.isArray(buttons) && buttons.length > 0) {
-        buttons.forEach((btn, idx) => {
-          const number = idx + 1;
-          const text = btn.text || btn.buttonText?.displayText || `Button ${number}`;
-          menuText += `${number}. ${text}\n`;
-        });
-      }
-      
-      menuText += `\n${footerText || 'Smart Bot'}`;
-      
-      // Send as plain text (v7 native format)
-      await this.sock.sendMessage(chatId, { text: menuText });
+      // Create proper interactive message using Baileys v7 proto
+      const buttonsMessage = {
+        text: bodyText,
+        footer: footerText || 'Smart Bot',
+        buttons: (buttons || []).map((btn, idx) => ({
+          buttonId: btn.id || `btn_${idx}`,
+          buttonText: { displayText: btn.text || btn.label || `Button ${idx + 1}` },
+          type: 1
+        })),
+        headerType: 1
+      };
+
+      // Generate the proto message
+      const message = await generateWAMessageFromContent(chatId, {
+        interactiveMessage: {
+          body: { text: bodyText },
+          footer: { text: footerText || 'Smart Bot' },
+          nativeFlowMessage: {
+            buttons: (buttons || []).map((btn, idx) => ({
+              "name": "cta_url",
+              "buttonParamsJson": JSON.stringify({
+                "display_text": btn.text || btn.label || `Button ${idx + 1}`,
+                "url": btn.url || "#",
+                "merchant_url": btn.url || "#"
+              })
+            }))
+          }
+        }
+      }, { quoted: null });
+
+      await this.sock.relayMessage(chatId, message.message, { messageId: message.key.id });
       return { success: true };
     } catch (error) {
       console.error(chalk.red('❌ Error sending button message:'), error.message);
-      // Fallback to plain text
+      // Fallback to numbered text buttons
       try {
-        await this.sock.sendMessage(chatId, { text: bodyText || 'Menu' });
+        let menuText = (bodyText || '') + '\n\n';
+        if (Array.isArray(buttons) && buttons.length > 0) {
+          buttons.forEach((btn, idx) => {
+            const number = idx + 1;
+            const text = btn.text || btn.label || `Button ${number}`;
+            menuText += `${number}. ${text}\n`;
+          });
+        }
+        menuText += `\n${footerText || 'Smart Bot'}`;
+        await this.sock.sendMessage(chatId, { text: menuText });
+        return { success: true };
       } catch (fallbackError) {
         console.error(chalk.red('❌ Fallback failed:'), fallbackError.message);
+        return { success: false, error: error.message };
       }
-      return { success: false, error: error.message };
     }
   }
 
   /**
-   * Send Interactive List Message
+   * Send Interactive List Message (Baileys v7 - Proto based)
    * @param {string} chatId - Recipient chat ID
-   * @param {string} buttonText - Button text to show
+   * @param {string} buttonTextOrPayload - Button text or payload object
    * @param {string} bodyText - Body text
    * @param {string} footerText - Footer text
    * @param {array} sections - Array of section objects
@@ -78,13 +105,79 @@ class MessageService {
         };
       }
 
-      // Use sendInteractiveMessage for v7 compatibility
-      return await this.sendInteractiveMessage(chatId, {
-        listMessage: payload
-      });
+      const text = payload.text || bodyText || '';
+      const footer = payload.footer || footerText || 'Smart Bot';
+      const rows = [];
+      
+      // Flatten sections into rows
+      if (Array.isArray(payload.sections)) {
+        payload.sections.forEach(section => {
+          if (Array.isArray(section.rows)) {
+            section.rows.forEach((row, idx) => {
+              rows.push({
+                header: section.title || '',
+                title: row.title || `Option ${idx + 1}`,
+                description: row.description || '',
+                id: row.id || `row_${idx}`
+              });
+            });
+          }
+        });
+      }
+
+      // Generate proto message for interactive list
+      const message = await generateWAMessageFromContent(chatId, {
+        interactiveMessage: {
+          body: { text: text },
+          footer: { text: footer },
+          nativeFlowMessage: {
+            buttons: [{
+              "name": "single_select",
+              "buttonParamsJson": JSON.stringify({
+                "title": payload.buttonText || "Select an option",
+                "sections": [{
+                  "title": "Options",
+                  "highlight_label": "Popular",
+                  "rows": rows.map(r => ({
+                    header: r.header,
+                    title: r.title,
+                    description: r.description,
+                    id: r.id
+                  }))
+                }]
+              })
+            }]
+          }
+        }
+      }, { quoted: null });
+
+      await this.sock.relayMessage(chatId, message.message, { messageId: message.key.id });
+      return { success: true };
     } catch (error) {
       console.error(chalk.red('❌ Error sending list message:'), error.message);
-      return { success: false, error: error.message };
+      // Fallback to text list
+      try {
+        let menuText = (payload?.text || bodyText || '') + '\n\n';
+        if (Array.isArray(payload?.sections)) {
+          payload.sections.forEach((section, sectionIdx) => {
+            if (section.title) {
+              menuText += `*${section.title}*\n`;
+            }
+            if (Array.isArray(section.rows)) {
+              section.rows.forEach((row, rowIdx) => {
+                const num = (sectionIdx * 10) + rowIdx + 1;
+                menuText += `${num}. ${row.title}${row.description ? ' - ' + row.description : ''}\n`;
+              });
+            }
+          });
+        }
+        menuText += `\n${payload?.footer || footerText || 'Smart Bot'}`;
+        await this.sock.sendMessage(chatId, { text: menuText });
+        return { success: true };
+      } catch (fallbackError) {
+        console.error(chalk.red('❌ Fallback failed:'), fallbackError.message);
+        return { success: false, error: error.message };
+      }
     }
   }
 
@@ -401,84 +494,97 @@ END:VCARD`;
   }
 
   /**
-   * Send Interactive Message (Baileys v7 compatible)
-   * Converts interactive payloads to simple button messages
-   * v7 doesn't support complex proto structures, so we use simpler format
+   * Send Interactive Message (Baileys v7 - Proto based)
+   * Supports buttons, lists, quick replies with native WhatsApp rendering
    */
   async sendInteractiveMessage(chatId, messagePayload) {
     try {
-      // Baileys v7 doesn't support viewOnceMessage + interactiveMessage
-      // Instead, use simple text message with formatting for menus
-      
+      let message;
+
       if (messagePayload.listMessage) {
         const listMsg = messagePayload.listMessage;
         
-        // Format as numbered list
-        let menuText = (listMsg.text || '') + '\n\n';
-        
+        const rows = [];
         if (Array.isArray(listMsg.sections)) {
-          listMsg.sections.forEach((section, sectionIndex) => {
-            if (section.title) {
-              menuText += `\n*${section.title}*\n`;
-            }
+          listMsg.sections.forEach(section => {
             if (Array.isArray(section.rows)) {
-              section.rows.forEach((row, rowIndex) => {
-                const number = rowIndex + 1;
-                const title = row.title || '';
-                const desc = row.description ? ` - ${row.description}` : '';
-                menuText += `${number}. ${title}${desc}\n`;
+              section.rows.forEach((row, idx) => {
+                rows.push({
+                  header: section.title || '',
+                  title: row.title || `Option ${idx + 1}`,
+                  description: row.description || '',
+                  id: row.id || `row_${idx}`
+                });
               });
             }
           });
         }
+
+        // Generate proto message for list
+        message = await generateWAMessageFromContent(chatId, {
+          interactiveMessage: {
+            body: { text: listMsg.text || '' },
+            footer: { text: listMsg.footer || 'Smart Bot' },
+            nativeFlowMessage: {
+              buttons: [{
+                "name": "single_select",
+                "buttonParamsJson": JSON.stringify({
+                  "title": listMsg.buttonText || "Select an option",
+                  "sections": [{
+                    "title": "Options",
+                    "rows": rows
+                  }]
+                })
+              }]
+            }
+          }
+        }, { quoted: null });
+      } else if (messagePayload.buttonMessage) {
+        const btnMsg = messagePayload.buttonMessage;
         
-        menuText += `\n${listMsg.footer || 'Smart Bot'}`;
-        
-        // Send as formatted text message
-        await this.sock.sendMessage(chatId, { text: menuText });
-        return { success: true };
-      } else if (messagePayload.interactive) {
-        // Try to send interactive format, fallback to text if fails
-        try {
-          await this.sock.sendMessage(chatId, messagePayload.interactive);
-          return { success: true };
-        } catch (interactiveError) {
-          // Fallback to text
-          const fallbackText = messagePayload.interactive?.body?.text || 'Menu';
-          await this.sock.sendMessage(chatId, { text: fallbackText });
-          return { success: true };
-        }
-      } else if (messagePayload.buttons) {
-        // Send button message directly
-        try {
-          await this.sock.sendMessage(chatId, messagePayload);
-          return { success: true };
-        } catch (buttonError) {
-          // Fallback to text
-          const fallbackText = messagePayload.text || 'Menu';
-          await this.sock.sendMessage(chatId, { text: fallbackText });
-          return { success: true };
-        }
+        // Generate proto message for buttons
+        message = await generateWAMessageFromContent(chatId, {
+          interactiveMessage: {
+            body: { text: btnMsg.text || '' },
+            footer: { text: btnMsg.footer || 'Smart Bot' },
+            nativeFlowMessage: {
+              buttons: (btnMsg.buttons || []).map((btn, idx) => ({
+                "name": "cta_url",
+                "buttonParamsJson": JSON.stringify({
+                  "display_text": btn.text || btn.label || `Button ${idx + 1}`,
+                  "url": btn.url || "#",
+                  "merchant_url": btn.url || "#"
+                })
+              }))
+            }
+          }
+        }, { quoted: null });
       } else {
-        // Standard message
-        await this.sock.sendMessage(chatId, messagePayload);
-        return { success: true };
+        // Generic interactive message
+        message = await generateWAMessageFromContent(chatId, {
+          interactiveMessage: messagePayload.interactive || {
+            body: { text: messagePayload.text || 'Message' }
+          }
+        }, { quoted: null });
       }
+
+      await this.sock.relayMessage(chatId, message.message, { messageId: message.key.id });
+      return { success: true };
     } catch (error) {
       console.error(chalk.red('❌ Error sending interactive message:'), error.message);
       
-      // Fallback: send plain text
+      // Fallback to text message
       try {
-        const fallbackText = messagePayload?.listMessage?.text 
-          || messagePayload?.interactive?.body?.text 
-          || messagePayload?.text 
-          || 'Menu';
-        
+        const fallbackText = messagePayload.listMessage?.text || 
+                            messagePayload.buttonMessage?.text || 
+                            messagePayload.text || 
+                            'Menu';
         await this.sock.sendMessage(chatId, { text: fallbackText });
+        return { success: true };
       } catch (fallbackError) {
-        console.error(chalk.red('❌ Fallback message failed:'), fallbackError.message);
+        console.error(chalk.red('❌ Fallback failed:'), fallbackError.message);
+        return { success: false, error: error.message };
       }
-      return { success: false, error: error.message };
     }
   }
 }

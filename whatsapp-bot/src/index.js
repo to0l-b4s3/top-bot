@@ -159,7 +159,7 @@ class SmartWhatsAppBot {
       this.store?.bind(this.sock.ev);
 
       // Initialize all services now that socket exists
-      this.messageService = new MessageService(this.sock);
+      this.messageService = new MessageService(this.sock, generateWAMessageFromContent);
       this.utilityCommandHandler = new UtilityCommandHandler(this, this.messageService);
       this.advancedAdminHandler = new AdvancedAdminHandler(this, this.messageService, null);
       this.interactiveMessageHandler = new InteractiveMessageHandler(this, this.messageService);
