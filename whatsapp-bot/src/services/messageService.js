@@ -55,7 +55,7 @@ class MessageService {
         }
       }, { quoted: null });
 
-      await this.sock.relayMessage(chatId, message.message, { messageId: message.key.id });
+      await this.sock.sendMessage(chatId, message.message);
       return { success: true };
     } catch (error) {
       console.error(chalk.red('❌ Error sending button message:'), error.message);
@@ -151,7 +151,7 @@ class MessageService {
         }
       }, { quoted: null });
 
-      await this.sock.relayMessage(chatId, message.message, { messageId: message.key.id });
+      await this.sock.sendMessage(chatId, message.message);
       return { success: true };
     } catch (error) {
       console.error(chalk.red('❌ Error sending list message:'), error.message);
@@ -499,9 +499,11 @@ END:VCARD`;
    */
   async sendInteractiveMessage(chatId, messagePayload) {
     try {
-      let message;
+      console.log('🎯 DEBUG: sendInteractiveMessage called with chatId:', chatId, 'payload keys:', Object.keys(messagePayload));
+      let interactiveMsg;
 
       if (messagePayload.listMessage) {
+        console.log('🎯 DEBUG: Processing listMessage');
         const listMsg = messagePayload.listMessage;
         
         const rows = [];
@@ -520,8 +522,10 @@ END:VCARD`;
           });
         }
 
-        // Generate proto message for list
-        message = await generateWAMessageFromContent(chatId, {
+        console.log('🎯 DEBUG: Built rows array, length:', rows.length);
+
+        // Build interactive message for list - send directly to sendMessage
+        interactiveMsg = {
           interactiveMessage: {
             body: { text: listMsg.text || '' },
             footer: { text: listMsg.footer || 'Smart Bot' },
@@ -538,12 +542,14 @@ END:VCARD`;
               }]
             }
           }
-        }, { quoted: null });
+        };
+        console.log('🎯 DEBUG: Built interactive message for list');
       } else if (messagePayload.buttonMessage) {
+        console.log('🎯 DEBUG: Processing buttonMessage');
         const btnMsg = messagePayload.buttonMessage;
         
-        // Generate proto message for buttons
-        message = await generateWAMessageFromContent(chatId, {
+        // Build interactive message for buttons
+        interactiveMsg = {
           interactiveMessage: {
             body: { text: btnMsg.text || '' },
             footer: { text: btnMsg.footer || 'Smart Bot' },
@@ -558,20 +564,25 @@ END:VCARD`;
               }))
             }
           }
-        }, { quoted: null });
+        };
+        console.log('🎯 DEBUG: Built interactive message for buttons');
       } else {
         // Generic interactive message
-        message = await generateWAMessageFromContent(chatId, {
+        interactiveMsg = {
           interactiveMessage: messagePayload.interactive || {
             body: { text: messagePayload.text || 'Message' }
           }
-        }, { quoted: null });
+        };
+        console.log('🎯 DEBUG: Built generic interactive message');
       }
 
-      await this.sock.relayMessage(chatId, message.message, { messageId: message.key.id });
+      console.log('🎯 DEBUG: About to call sendMessage with interactiveMessage');
+      await this.sock.sendMessage(chatId, interactiveMsg);
+      console.log('🎯 DEBUG: sendMessage succeeded');
       return { success: true };
     } catch (error) {
       console.error(chalk.red('❌ Error sending interactive message:'), error.message);
+      console.error('🎯 DEBUG: Error stack:', error.stack);
       
       // Fallback to text message
       try {
@@ -579,10 +590,13 @@ END:VCARD`;
                             messagePayload.buttonMessage?.text || 
                             messagePayload.text || 
                             'Menu';
+        console.log('🎯 DEBUG: Trying fallback with text:', fallbackText.substring(0, 50));
         await this.sock.sendMessage(chatId, { text: fallbackText });
+        console.log('🎯 DEBUG: Fallback succeeded');
         return { success: true };
       } catch (fallbackError) {
         console.error(chalk.red('❌ Fallback failed:'), fallbackError.message);
+        console.error('🎯 DEBUG: Fallback error stack:', fallbackError.stack);
         return { success: false, error: error.message };
       }
     }

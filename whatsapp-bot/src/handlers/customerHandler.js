@@ -151,16 +151,22 @@ class CustomerHandler {
    */
   async handleMenuCommand(args, phoneNumber, from) {
     try {
+      console.log('🍔 DEBUG: handleMenuCommand called', { from, phoneNumber });
+      
       // Get the all commands menu - shows all available commands organized by category
       const allCommandsMenu = CommandRegistry.createAllCommandsMenu();
+      console.log('🍔 DEBUG: Menu created, type:', typeof allCommandsMenu, 'has sections:', !!allCommandsMenu?.sections);
       
       if (!allCommandsMenu) {
+        console.log('🍔 DEBUG: Menu is null/undefined!');
         await this.messageService.sendTextMessage(from, '❌ Could not generate menu');
         return { success: false };
       }
 
+      console.log('🍔 DEBUG: Calling sendInteractiveMessage with menuService:', !!this.messageService);
       // Send the interactive list message with all commands
-      await this.messageService.sendInteractiveMessage(from, { listMessage: allCommandsMenu });
+      const result = await this.messageService.sendInteractiveMessage(from, { listMessage: allCommandsMenu });
+      console.log('🍔 DEBUG: sendInteractiveMessage result:', result);
       return { success: true };
     } catch (error) {
       logger.error('Menu command error', error);
