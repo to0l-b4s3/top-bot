@@ -495,91 +495,18 @@ END:VCARD`;
 
   /**
    * Send Interactive Message (Baileys v7)
-   * Simplified approach - send directly to socket
+   * Sends as text menu if interactive messages don't work
    */
   async sendInteractiveMessage(chatId, messagePayload) {
     try {
       console.log('🎯 DEBUG: sendInteractiveMessage called');
       
-      if (messagePayload.listMessage) {
-        const listMsg = messagePayload.listMessage;
-        const rows = [];
-        
-        if (Array.isArray(listMsg.sections)) {
-          listMsg.sections.forEach(section => {
-            if (Array.isArray(section.rows)) {
-              section.rows.forEach((row) => {
-                rows.push({
-                  header: section.title || '',
-                  title: row.title || 'Option',
-                  description: row.description || '',
-                  id: row.id || ''
-                });
-              });
-            }
-          });
-        }
-
-        console.log('🎯 DEBUG: Sending list message with rows:', rows.length);
-
-        // Try using proto Message directly
-        try {
-          const message = {
-            interactiveMessage: {
-              body: { text: listMsg.text || '' },
-              footer: { text: listMsg.footer || 'Smart Bot' },
-              nativeFlowMessage: {
-                buttons: [{
-                  name: "single_select",
-                  buttonParamsJson: JSON.stringify({
-                    title: listMsg.buttonText || "Select",
-                    sections: [{
-                      title: "Options",
-                      rows: rows.slice(0, 10) // Limit to 10 rows per section
-                    }]
-                  })
-                }]
-              }
-            }
-          };
-
-          await this.sock.sendMessage(chatId, message);
-          console.log('🎯 DEBUG: Interactive message sent successfully');
-          return { success: true };
-        } catch (protoError) {
-          console.log('🎯 DEBUG: Proto message failed, error:', protoError.message);
-          return { success: false, error: protoError.message };
-        }
-
-      } else if (messagePayload.buttonMessage) {
-        const btnMsg = messagePayload.buttonMessage;
-        const message = {
-          interactiveMessage: {
-            body: { text: btnMsg.text || '' },
-            footer: { text: btnMsg.footer || 'Smart Bot' },
-            nativeFlowMessage: {
-              buttons: (btnMsg.buttons || []).map((btn) => ({
-                name: "cta_url",
-                buttonParamsJson: JSON.stringify({
-                  display_text: btn.text || 'Button',
-                  url: btn.url || "#"
-                })
-              }))
-            }
-          }
-        };
-
-        await this.sock.sendMessage(chatId, message);
-        return { success: true };
-
-      } else {
-        // Generic fallback
-        await this.sock.sendMessage(chatId, { text: messagePayload.text || 'Message' });
-        return { success: true };
-      }
-
+      // Always return failure to trigger text fallback
+      // This ensures compatibility with all WhatsApp clients
+      return { success: false, error: 'Using text fallback for compatibility' };
+      
     } catch (error) {
-      console.error(chalk.red('❌ Error sending interactive message:'), error.message);
+      console.error(chalk.red('❌ Error in sendInteractiveMessage:'), error.message);
       return { success: false, error: error.message };
     }
   }

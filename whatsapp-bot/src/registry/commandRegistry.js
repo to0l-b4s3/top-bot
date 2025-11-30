@@ -1004,6 +1004,42 @@ const CommandRegistry = {
       buttonText: 'Browse',
       title: 'Main Menu'
     };
+  },
+
+  /**
+   * Create a comprehensive text menu with all commands
+   */
+  createTextMenu() {
+    let menu = `╔════════════════════════════════════════════════╗
+║ 🤖 *SMART BOT - COMPLETE COMMAND LIST* 🤖    ║
+╚════════════════════════════════════════════════╝
+
+`;
+
+    const categories = commandRegistry;
+    
+    Object.entries(categories).forEach(([key, category]) => {
+      menu += `\n${category.emoji} *${category.name.toUpperCase()}*\n`;
+      menu += '─'.repeat(45) + '\n';
+      
+      const commands = Object.entries(category.commands);
+      commands.forEach(([cmdKey, cmd]) => {
+        const aliases = cmd.aliases ? `(${cmd.aliases.join(', ')})` : '';
+        menu += `• *${cmd.name}* ${aliases}\n`;
+        menu += `  └─ ${cmd.description}\n`;
+        menu += `  └─ Usage: \`${cmd.usage}\`\n\n`;
+      });
+    });
+
+    menu += `╔════════════════════════════════════════════════╗
+║ 💡 *TIPS*                                      ║
+╠════════════════════════════════════════════════╣
+║ • Use !help <command> for detailed help       ║
+║ • Use !prefix <symbol> to change prefix       ║
+║ • All commands support: !, #, ., $, /, ~, ^  ║
+╚════════════════════════════════════════════════╝`;
+
+    return menu;
   }
 };
 

@@ -79,24 +79,9 @@ class UtilityCommandHandler {
   }
 
   async showMenu(from) {
-    const menuPayload = CommandRegistry.createMainMenu();
-    const result = await this.messageService.sendInteractiveMessage(from, { listMessage: menuPayload });
-    
-    if (!result.success) {
-      // Fallback to text menu
-      let textMenu = menuPayload.text + '\n\n';
-      if (Array.isArray(menuPayload.sections)) {
-        menuPayload.sections.forEach(section => {
-          if (Array.isArray(section.rows)) {
-            section.rows.forEach((row, idx) => {
-              textMenu += `${idx + 1}. ${row.title}\n   ${row.description}\n\n`;
-            });
-          }
-        });
-      }
-      await this.messageService.sendTextMessage(from, textMenu);
-    }
-    
+    // Send the comprehensive text menu with all commands
+    const fullMenu = CommandRegistry.createTextMenu();
+    await this.messageService.sendTextMessage(from, fullMenu);
     return { success: true };
   }
 

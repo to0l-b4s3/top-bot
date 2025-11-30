@@ -151,37 +151,16 @@ class CustomerHandler {
    */
   async handleMenuCommand(args, phoneNumber, from) {
     try {
-      // Get the all commands menu - shows all available commands organized by category
-      const allCommandsMenu = CommandRegistry.createAllCommandsMenu();
+      // Get comprehensive text menu with ALL commands
+      const fullMenu = CommandRegistry.createTextMenu();
       
-      if (!allCommandsMenu) {
+      if (!fullMenu) {
         await this.messageService.sendTextMessage(from, '❌ Could not generate menu');
         return { success: false };
       }
 
-      // Send the interactive list message with all commands
-      const result = await this.messageService.sendInteractiveMessage(from, { listMessage: allCommandsMenu });
-      
-      if (!result.success) {
-        // If interactive fails, send text version
-        let textMenu = allCommandsMenu.text + '\n\n';
-        if (Array.isArray(allCommandsMenu.sections)) {
-          allCommandsMenu.sections.forEach(section => {
-            textMenu += `*${section.title}*\n`;
-            if (Array.isArray(section.rows)) {
-              section.rows.slice(0, 5).forEach((row, idx) => {
-                textMenu += `${idx + 1}. ${row.title}\n`;
-              });
-              if (section.rows.length > 5) {
-                textMenu += `... and ${section.rows.length - 5} more\n`;
-              }
-            }
-            textMenu += '\n';
-          });
-        }
-        await this.messageService.sendTextMessage(from, textMenu);
-      }
-      
+      // Send the complete command menu as text
+      await this.messageService.sendTextMessage(from, fullMenu);
       return { success: true };
     } catch (error) {
       logger.error('Menu command error', error);
