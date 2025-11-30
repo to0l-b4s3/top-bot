@@ -49,25 +49,6 @@ Available commands:
     }
     return { text: menuMsg };
   }
-          {
-            id: 'groupstats',
-            text: '📈 Group Stats',
-            description: 'View statistics'
-          },
-          {
-            id: 'antibot',
-            text: '🤖 Anti-Bot Settings',
-            description: 'Configure anti-bot'
-          },
-          {
-            id: 'welcome',
-            text: '👋 Welcome Message',
-            description: 'Set welcome msg'
-          }
-        ]
-      }]
-    );
-  }
 
   /**
    * !groupinfo - Get group information
