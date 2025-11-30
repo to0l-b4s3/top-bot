@@ -379,15 +379,11 @@ class SmartWhatsAppBot {
     try {
       // Parse command with multi-prefix support
       const parsed = PrefixManager.parseCommand(text);
-      if (!parsed) {
-        console.log('❌ Failed to parse command:', text);
-        return;
-      }
+      if (!parsed) return;
 
       const { prefix, command, args } = parsed;
 
       console.log(chalk.blue(`📝 Command: ${command}`), chalk.gray(`from ${cleanPhone}`), chalk.yellow(`[${prefix}]`));
-      console.log('🔍 DEBUG: Resolved to command:', command, 'args:', args);
 
       // Emit command executed event
       WebSocketEventEmitter.commandExecuted(from, command, args, 'processing');
@@ -404,12 +400,10 @@ class SmartWhatsAppBot {
       };
 
       if (reactionMap[command] && Math.random() > 0.3) {
-        console.log('🔍 DEBUG: Adding smart reaction for command:', command);
         await this.interactiveMessageHandler.smartReact(from, message.key, command);
       }
 
       // Route to appropriate handler
-      console.log('🔍 DEBUG: Routing command:', command);
       switch (command) {
         // Utility commands (excluding menu which is a customer command)
         case 'help':
@@ -466,7 +460,6 @@ class SmartWhatsAppBot {
         case 'ordermenu':
         case 'accountmenu':
         case 'dealmenu':
-          console.log('🔍 DEBUG: Routing to customerHandler.handleCustomerCommand');
           return await this.customerHandler.handleCustomerCommand(command, args, from, cleanPhone);
 
         // Merchant commands

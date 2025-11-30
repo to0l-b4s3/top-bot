@@ -494,111 +494,93 @@ END:VCARD`;
   }
 
   /**
-   * Send Interactive Message (Baileys v7 - Proto based)
-   * Supports buttons, lists, quick replies with native WhatsApp rendering
+   * Send Interactive Message (Baileys v7)
+   * Simplified approach - send directly to socket
    */
   async sendInteractiveMessage(chatId, messagePayload) {
     try {
-      console.log('🎯 DEBUG: sendInteractiveMessage called with chatId:', chatId, 'payload keys:', Object.keys(messagePayload));
-      let interactiveMsg;
-
+      console.log('🎯 DEBUG: sendInteractiveMessage called');
+      
       if (messagePayload.listMessage) {
-        console.log('🎯 DEBUG: Processing listMessage');
         const listMsg = messagePayload.listMessage;
-        
         const rows = [];
+        
         if (Array.isArray(listMsg.sections)) {
           listMsg.sections.forEach(section => {
             if (Array.isArray(section.rows)) {
-              section.rows.forEach((row, idx) => {
+              section.rows.forEach((row) => {
                 rows.push({
                   header: section.title || '',
-                  title: row.title || `Option ${idx + 1}`,
+                  title: row.title || 'Option',
                   description: row.description || '',
-                  id: row.id || `row_${idx}`
+                  id: row.id || ''
                 });
               });
             }
           });
         }
 
-        console.log('🎯 DEBUG: Built rows array, length:', rows.length);
+        console.log('🎯 DEBUG: Sending list message with rows:', rows.length);
 
-        // Build interactive message for list - send directly to sendMessage
-        interactiveMsg = {
-          interactiveMessage: {
-            body: { text: listMsg.text || '' },
-            footer: { text: listMsg.footer || 'Smart Bot' },
-            nativeFlowMessage: {
-              buttons: [{
-                "name": "single_select",
-                "buttonParamsJson": JSON.stringify({
-                  "title": listMsg.buttonText || "Select an option",
-                  "sections": [{
-                    "title": "Options",
-                    "rows": rows
-                  }]
-                })
-              }]
+        // Try using proto Message directly
+        try {
+          const message = {
+            interactiveMessage: {
+              body: { text: listMsg.text || '' },
+              footer: { text: listMsg.footer || 'Smart Bot' },
+              nativeFlowMessage: {
+                buttons: [{
+                  name: "single_select",
+                  buttonParamsJson: JSON.stringify({
+                    title: listMsg.buttonText || "Select",
+                    sections: [{
+                      title: "Options",
+                      rows: rows.slice(0, 10) // Limit to 10 rows per section
+                    }]
+                  })
+                }]
+              }
             }
-          }
-        };
-        console.log('🎯 DEBUG: Built interactive message for list');
+          };
+
+          await this.sock.sendMessage(chatId, message);
+          console.log('🎯 DEBUG: Interactive message sent successfully');
+          return { success: true };
+        } catch (protoError) {
+          console.log('🎯 DEBUG: Proto message failed, error:', protoError.message);
+          return { success: false, error: protoError.message };
+        }
+
       } else if (messagePayload.buttonMessage) {
-        console.log('🎯 DEBUG: Processing buttonMessage');
         const btnMsg = messagePayload.buttonMessage;
-        
-        // Build interactive message for buttons
-        interactiveMsg = {
+        const message = {
           interactiveMessage: {
             body: { text: btnMsg.text || '' },
             footer: { text: btnMsg.footer || 'Smart Bot' },
             nativeFlowMessage: {
-              buttons: (btnMsg.buttons || []).map((btn, idx) => ({
-                "name": "cta_url",
-                "buttonParamsJson": JSON.stringify({
-                  "display_text": btn.text || btn.label || `Button ${idx + 1}`,
-                  "url": btn.url || "#",
-                  "merchant_url": btn.url || "#"
+              buttons: (btnMsg.buttons || []).map((btn) => ({
+                name: "cta_url",
+                buttonParamsJson: JSON.stringify({
+                  display_text: btn.text || 'Button',
+                  url: btn.url || "#"
                 })
               }))
             }
           }
         };
-        console.log('🎯 DEBUG: Built interactive message for buttons');
+
+        await this.sock.sendMessage(chatId, message);
+        return { success: true };
+
       } else {
-        // Generic interactive message
-        interactiveMsg = {
-          interactiveMessage: messagePayload.interactive || {
-            body: { text: messagePayload.text || 'Message' }
-          }
-        };
-        console.log('🎯 DEBUG: Built generic interactive message');
+        // Generic fallback
+        await this.sock.sendMessage(chatId, { text: messagePayload.text || 'Message' });
+        return { success: true };
       }
 
-      console.log('🎯 DEBUG: About to call sendMessage with interactiveMessage');
-      await this.sock.sendMessage(chatId, interactiveMsg);
-      console.log('🎯 DEBUG: sendMessage succeeded');
-      return { success: true };
     } catch (error) {
       console.error(chalk.red('❌ Error sending interactive message:'), error.message);
-      console.error('🎯 DEBUG: Error stack:', error.stack);
-      
-      // Fallback to text message
-      try {
-        const fallbackText = messagePayload.listMessage?.text || 
-                            messagePayload.buttonMessage?.text || 
-                            messagePayload.text || 
-                            'Menu';
-        console.log('🎯 DEBUG: Trying fallback with text:', fallbackText.substring(0, 50));
-        await this.sock.sendMessage(chatId, { text: fallbackText });
-        console.log('🎯 DEBUG: Fallback succeeded');
-        return { success: true };
-      } catch (fallbackError) {
-        console.error(chalk.red('❌ Fallback failed:'), fallbackError.message);
-        console.error('🎯 DEBUG: Fallback error stack:', fallbackError.stack);
-        return { success: false, error: error.message };
-      }
+      return { success: false, error: error.message };
     }
   }
 }
