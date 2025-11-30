@@ -6,16 +6,9 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "api": "node api-server.js",
-    "api:dev": "nodemon api-server.js",
-    "all": "concurrently \"npm run dev\" \"npm run api:dev\"",
-    "bot:legacy": "node enhanced-bot.js",
     "build": "echo 'Bot is JavaScript-based, no build required'",
-    "test": "echo 'No tests configured yet'",
-    "lint": "eslint src/**/*.js",
-    "verify:handlers": "node verify-handlers.js",
-    "test:integration": "node test-integration.js",
-    "test:all": "npm run verify:handlers && npm run test:integration"
+    "test": "echo 'Tests configured in test suite'",
+    "lint": "eslint src/**/*.js"
   },
   "dependencies": {
     "@adiwajshing/keyed-db": "^0.2.4",

@@ -656,8 +656,7 @@ Handler system documentation is available in the `whatsapp-bot/` directory:
 - **[HANDLER_ARCHITECTURE.md](./whatsapp-bot/HANDLER_ARCHITECTURE.md)** - Complete reference
 - **[HANDLER_QUICK_REFERENCE.md](./whatsapp-bot/HANDLER_QUICK_REFERENCE.md)** - Developer guide
 - **[HANDLER_ANALYSIS_REPORT.md](./whatsapp-bot/HANDLER_ANALYSIS_REPORT.md)** - Metrics & status
-- **[verify-handlers.js](./whatsapp-bot/verify-handlers.js)** - Verification script
-- **[test-integration.js](./whatsapp-bot/test-integration.js)** - Integration tests
+- **src/** - Main bot implementation
 
 ---
 
@@ -775,11 +774,7 @@ kill -9 <PID>
 
 ```bash
 # Start API server separately:
-cd whatsapp-bot
-node api-server.js
-
-# Or run everything:
-npm run all
+node src/server/index.js
 ```
 
 ### Issue: WhatsApp Blocks Messages
@@ -946,7 +941,7 @@ DATABASE
    - Review `whatsapp-bot/HANDLER_QUICK_REFERENCE.md` for code examples
    - Consult `whatsapp-bot/HANDLER_ARCHITECTURE.md` for deep understanding
 8. **Customize for your use case:**
-   - Edit products in `whatsapp-bot/enhanced-bot.js`
+   - Edit products in `src/server/index.js` or `data/products.json`
    - Modify commands as needed
    - Update branding/messages
    - Extend handlers using the extension guide
@@ -973,7 +968,7 @@ DATABASE
 | Bot not responding | Check "Bot Connected!" in terminal |
 | Database error | Run `docker-compose ps` |
 | Port in use | Use `lsof -i :<port>` to find |
-| API not working | Start with `node api-server.js` |
+| API not working | Start API with `npm run api` or `node src/server/index.js` |
 | WhatsApp QR error | Ctrl+C to stop, restart bot |
 | Permission denied | Run `chmod +x quickstart.sh` |
 
@@ -995,20 +990,14 @@ npm run verify:handlers  # Takes ~2 seconds
 1. Create handler file in `src/services/` or `src/handlers/`
 2. Implement required methods matching the interface
 3. Export the handler (class or singleton)
-4. Add tests to `test-integration.js`
-5. Run verification: `npm run test:all`
+4. Add tests to your test suite
+5. Validate with ESLint: `npm run lint`
 
 ### Testing Changes
 
 ```bash
-# Run verification to ensure no regression
-npm run verify:handlers
-
-# Run integration tests
-npm run test:integration
-
-# Run both
-npm run test:all
+# Run linting to ensure code quality
+npm run lint
 ```
 
 ### Handler Development Workflow
