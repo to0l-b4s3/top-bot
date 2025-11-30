@@ -4,6 +4,7 @@
  */
 
 const Logger = require('../config/logger');
+const ResponseFormatter = require('../utils/responseFormatter');
 const logger = new Logger('FunAndGamesHandler');
 
 class FunAndGamesHandler {

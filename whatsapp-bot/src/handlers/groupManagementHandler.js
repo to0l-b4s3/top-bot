@@ -3,9 +3,19 @@
  * Provides advanced group management features
  */
 
+const ResponseFormatter = require('../utils/responseFormatter');
+
 class GroupManagementHandler {
   constructor(cache = null) {
     this.cache = cache;
+    this.messageService = null;
+  }
+
+  /**
+   * Set message service for sending replies
+   */
+  setMessageService(messageService) {
+    this.messageService = messageService;
   }
 
   /**
@@ -13,32 +23,32 @@ class GroupManagementHandler {
    */
   async handleGroupToolsCommand(phoneNumber, from, isGroup = false) {
     if (!isGroup) {
-      return {
-        text: '❌ This command only works in groups.'
-      };
+      const msg = ResponseFormatter.error('Group Only', 'This command only works in groups.');
+      if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+      return { text: '❌ This command only works in groups.' };
     }
 
-    return require('../utils/interactiveMessageBuilder').listMessage(
-      '👥 GROUP MANAGEMENT TOOLS',
-      'Select a tool:',
-      [{
-        title: 'Available Tools',
-        rows: [
-          {
-            id: 'groupinfo',
-            text: '📊 Group Info',
-            description: 'Get group details'
-          },
-          {
-            id: 'grouprules',
-            text: '📋 Group Rules',
-            description: 'View group rules'
-          },
-          {
-            id: 'memberlist',
-            text: '👥 Member List',
-            description: 'List all members'
-          },
+    const menuMsg = `
+👥 *GROUP MANAGEMENT TOOLS*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Available commands:
+📊 !groupinfo - Get group details
+📋 !grouprules - View group rules
+👥 !memberlist - List all members
+🔇 !mute <duration> - Mute group
+🔊 !unmute - Unmute group
+🎯 !pin <text> - Pin a message
+📍 !unpin - Unpin messages
+⚠️  !warn <member> - Warn a member
+🚫 !kick <member> - Remove member
+    `.trim();
+
+    if (this.messageService) {
+      await this.messageService.sendTextMessage(from, menuMsg);
+    }
+    return { text: menuMsg };
+  }
           {
             id: 'groupstats',
             text: '📈 Group Stats',

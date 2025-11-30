@@ -3,6 +3,8 @@
  * Handles: feedback, helpers, support commands
  */
 
+const ResponseFormatter = require('../utils/responseFormatter');
+
 class SupportHandler {
   constructor() {
     this.messageService = null;
@@ -32,11 +34,13 @@ class SupportHandler {
         case 'bug':
           return await this.handleBugReportCommand(args, from, cleanPhone);
         default:
-          return await this.messageService.sendTextMessage(from, '❌ Unknown support command');
+          const msg = ResponseFormatter.error('Unknown Command', 'This support command is not recognized');
+          return await this.messageService.sendTextMessage(from, msg);
       }
     } catch (error) {
       console.error('Error in support handler:', error);
-      return await this.messageService.sendTextMessage(from, `❌ Support error: ${error.message}`);
+      const msg = ResponseFormatter.error('Support Error', error.message);
+      return await this.messageService.sendTextMessage(from, msg);
     }
   }
 

@@ -11,6 +11,7 @@ const MessageFormatter = require('../utils/messageFormatter');
 const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
 const FlowManager = require('../utils/flowManager');
 const WorldClassResponses = require('../utils/worldClassResponses');
+const ResponseFormatter = require('../utils/responseFormatter');
 const Logger = require('../config/logger');
 const CommandRegistry = require('../registry/commandRegistry');
 
@@ -182,69 +183,68 @@ Type !help for more information.`;
    */
   async handleSearchCommand(query, phoneNumber, from) {
     if (!query || query.length < 2) {
-      const errorMsg = `🔍 *SEARCH PRODUCTS*
-
-Please provide a search term with at least 2 characters.
-
-Examples:
-• !search pizza
-• !search chicken
-• !search bread
-• !search coke
-
-🔹 What to search:
-   - Product names
-   - Categories
-   - Cuisines
-   - Brands`;
+      const errorMsg = ResponseFormatter.commandHelp(
+        'Search',
+        'Find products by keyword',
+        '!search <query>',
+        [
+          '!search pizza - Search for pizza',
+          '!search chicken - Search for chicken',
+          '!search bread - Search for bread'
+        ],
+        ['find', 's']
+      );
       
-      await this.messageService.sendRichMessage(from, errorMsg, {
-        title: '🔎 Search Guide',
-        description: 'Learn how to search for products',
-        sourceUrl: 'https://smart-bot.io/search'
-      });
+      await this.messageService.sendTextMessage(from, errorMsg);
       return { success: true };
     }
 
-    const response = await backendAPI.searchProducts(query);
-    if (!response.success || response.data.length === 0) {
-      const errorMsg = `🔍 *NO RESULTS FOUND*
-
-"${query}" didn't match any products.
-
-Try:
-• Different keywords
-• Browse !menu to see all items
-• Type !categories to explore by type`;
+    try {
+      const response = await backendAPI.searchProducts(query);
       
-      await this.messageService.sendRichMessage(from, errorMsg, {
-        title: '❌ Search Not Found',
-        description: 'Try browsing or searching with different keywords',
-        sourceUrl: 'https://smart-bot.io/menu'
+      if (!response.success || !response.data || response.data.length === 0) {
+        const errorMsg = ResponseFormatter.error(
+          'SEARCH - NO RESULTS',
+          `"${query}" didn't match any products in our database.`,
+          '• Try different keywords\n• Type !menu to browse all items\n• Type !categories to explore by category'
+        );
+        
+        await this.messageService.sendTextMessage(from, errorMsg);
+        return { success: true };
+      }
+
+      // Format search results
+      let resultMsg = `🔍 *SEARCH RESULTS FOR: "${query}"*\n`;
+      resultMsg += '═'.repeat(45) + '\n';
+      resultMsg += `Found ${response.data.length} product(s)\n\n`;
+
+      response.data.slice(0, 10).forEach((product, idx) => {
+        resultMsg += `${idx + 1}. *${product.name}*\n`;
+        resultMsg += `   💰 ZWL ${product.price.toFixed(2)}\n`;
+        resultMsg += `   ⭐ Rating: ${product.rating || 'N/A'}/5\n`;
+        resultMsg += `   📍 By: ${product.seller || 'Unknown'}\n\n`;
       });
+
+      if (response.data.length > 10) {
+        resultMsg += `... and ${response.data.length - 10} more products\n\n`;
+      }
+
+      resultMsg += '💡 Type !add <product_id> <quantity> to add to cart\n';
+      resultMsg += '💡 Type !product <id> for more details';
+
+      await this.messageService.sendTextMessage(from, resultMsg);
       return { success: true };
+    } catch (error) {
+      logger.error('Search command error', error);
+      const errorMsg = ResponseFormatter.error(
+        'SEARCH FAILED',
+        `An error occurred while searching for "${query}": ${error.message}`,
+        'Try again later or type !menu to browse'
+      );
+      
+      await this.messageService.sendTextMessage(from, errorMsg);
+      return { success: false };
     }
-
-    // Create interactive list with search results
-    const sections = [{
-      title: `Search Results (${response.data.length} found)`,
-      rows: response.data.slice(0, 10).map(product => ({
-        rowId: `search_${product.id}`,
-        title: `${product.image || '🛍️'} ${(product.name || '').substring(0, 25)}`,
-        description: `ZWL ${product.price.toFixed(0)} | ⭐ ${(product.rating || 0).toFixed(1)}`
-      }))
-    }];
-
-    const searchMessage = {
-      text: `🔍 *SEARCH RESULTS*\n\n"${query}"\n\nFound ${response.data.length} product(s):`,
-      footer: '━━━━━━━━ Select to add to cart ━━━━━━━━',
-      sections: sections,
-      buttonText: 'Select Product',
-      title: 'Search Results'
-    };
-
-    await this.messageService.sendInteractiveMessage(from, { listMessage: searchMessage });
-    return { success: true };
   }
 
   /**

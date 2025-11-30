@@ -4,11 +4,20 @@
  */
 
 const axios = require('axios');
+const ResponseFormatter = require('../utils/responseFormatter');
 
 class OwnerDeploymentHandler {
   constructor(cache = null, ownerNumber = null) {
     this.cache = cache;
     this.ownerNumber = ownerNumber;
+    this.messageService = null;
+  }
+
+  /**
+   * Set message service for sending replies
+   */
+  setMessageService(messageService) {
+    this.messageService = messageService;
   }
 
   /**
@@ -23,9 +32,9 @@ class OwnerDeploymentHandler {
    */
   async handleOwnerMenuCommand(phoneNumber, from) {
     if (!this.isOwner(phoneNumber)) {
-      return {
-        text: '❌ This command is only available to the bot owner.'
-      };
+      const msg = ResponseFormatter.error('Access Denied', 'This command is only available to the bot owner.');
+      if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+      return { text: '❌ This command is only available to the bot owner.' };
     }
 
     return require('../utils/interactiveMessageBuilder').listMessage(

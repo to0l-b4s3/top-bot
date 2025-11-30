@@ -3,9 +3,19 @@
  * Provides fun, entertaining, and interactive games
  */
 
+const ResponseFormatter = require('../utils/responseFormatter');
+
 class EntertainmentHandler {
   constructor(cache = null) {
     this.cache = cache;
+    this.messageService = null;
+  }
+
+  /**
+   * Set message service for sending replies
+   */
+  setMessageService(messageService) {
+    this.messageService = messageService;
   }
 
   /**

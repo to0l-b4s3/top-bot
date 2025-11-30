@@ -9,11 +9,23 @@ const cache = require('../database/cache');
 const MessageFormatter = require('../utils/messageFormatter');
 const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
 const FlowManager = require('../utils/flowManager');
+const ResponseFormatter = require('../utils/responseFormatter');
 const Logger = require('../config/logger');
 
 const logger = new Logger('AdminHandler');
 
 class AdminHandler {
+  constructor() {
+    this.messageService = null;
+  }
+
+  /**
+   * Set message service for sending replies
+   */
+  setMessageService(messageService) {
+    this.messageService = messageService;
+  }
+
   /**
    * Handle admin commands
    */
@@ -66,97 +78,108 @@ class AdminHandler {
    * !admin merchants [pending|approved|suspended]
    */
   async handleMerchantsCommand(args, from, phoneNumber) {
-    const status = args[0]?.toLowerCase() || 'pending';
+    try {
+      const status = args[0]?.toLowerCase() || 'pending';
 
-    const response = await backendAPI.getPendingMerchants();
-    if (!response.success) {
-      return InteractiveMessageBuilder.createErrorCard(
-        'Failed to fetch merchants',
-        ['Try again later', 'Check your connection']
-      );
+      const response = await backendAPI.getPendingMerchants();
+      if (!response.success) {
+        const msg = ResponseFormatter.error('Merchants', 'Failed to fetch merchant list');
+        await this.messageService.sendTextMessage(from, msg);
+        return { success: false };
+      }
+
+      const merchants = response.data;
+      if (merchants.length === 0) {
+        const msg = ResponseFormatter.info('No Merchants', `No ${status} merchants found.`);
+        await this.messageService.sendTextMessage(from, msg);
+        return { success: true };
+      }
+
+      let message = `👥 *${status.toUpperCase()} MERCHANTS (${merchants.length})*\n`;
+      message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      
+      merchants.slice(0, 10).forEach((m, i) => {
+        message += `${i + 1}. *${m.business_name}*\n`;
+        message += `   👤 Owner: ${m.owner_name}\n`;
+        message += `   📍 Category: ${m.category}\n`;
+        message += `   📧 Email: ${m.email || 'N/A'}\n`;
+        message += `   🔑 ID: ${m.id}\n\n`;
+      });
+
+      message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `✅ Approve: !admin approve <id>\n`;
+      message += `❌ Reject: !admin reject <id> [reason]`;
+
+      await this.messageService.sendTextMessage(from, message);
+      return { success: true };
+    } catch (error) {
+      const msg = ResponseFormatter.error('Merchants', error.message);
+      await this.messageService.sendTextMessage(from, msg);
+      return { success: false, error: error.message };
     }
-
-    const merchants = response.data;
-    if (merchants.length === 0) {
-      return { message: `No ${status} merchants found.` };
-    }
-
-    return InteractiveMessageBuilder.listMessage(
-      `👥 ${status.toUpperCase()} MERCHANTS`,
-      `Found ${merchants.length} merchant${merchants.length !== 1 ? 's' : ''}`,
-      [{
-        title: 'Merchants',
-        rows: merchants.slice(0, 10).map((m, i) => ({
-          rowId: `approve_${m.id}`,
-          title: `${i + 1}. ${m.business_name}`,
-          description: `${m.owner_name} • ${m.category}`,
-          image: null
-        }))
-      }],
-      merchants.length > 10 ? `Showing 10 of ${merchants.length}` : 'Select to approve'
-    );
   }
 
   /**
    * !admin approve <merchant_id>
    */
   async handleApproveCommand(args, from, phoneNumber) {
-    if (!args[0]) {
-      return InteractiveMessageBuilder.createErrorCard(
-        'Merchant ID required',
-        ['Usage: !admin approve <merchant_id>', 'Get ID from !admin merchants']
-      );
+    try {
+      if (!args[0]) {
+        const msg = ResponseFormatter.error('Invalid Input', 'Usage: !admin approve <merchant_id>');
+        await this.messageService.sendTextMessage(from, msg);
+        return { success: false };
+      }
+
+      const merchantId = args[0];
+      const response = await backendAPI.approveMerchant(merchantId, phoneNumber);
+
+      if (!response.success) {
+        const msg = ResponseFormatter.error('Approve Failed', response.error || 'Could not approve merchant');
+        await this.messageService.sendTextMessage(from, msg);
+        return { success: false };
+      }
+
+      const merchant = response.data;
+      const successMsg = ResponseFormatter.success('Merchant Approved', `${merchant.business_name} is now active!\nOwner: ${merchant.owner_name}`);
+      await this.messageService.sendTextMessage(from, successMsg);
+      return { success: true };
+    } catch (error) {
+      const msg = ResponseFormatter.error('Approve Failed', error.message);
+      await this.messageService.sendTextMessage(from, msg);
+      return { success: false, error: error.message };
     }
-
-    const merchantId = args[0];
-    const response = await backendAPI.approveMerchant(merchantId, phoneNumber);
-
-    if (!response.success) {
-      return InteractiveMessageBuilder.createErrorCard(`Failed to approve: ${response.error}`);
-    }
-
-    const merchant = response.data;
-    const merchantMessage = `🎉 *Your merchant account has been approved!*\n\nYou can now:\n✅ Add products\n✅ Accept orders\n✅ Manage your store\n\nType *!help* to see merchant commands.`;
-    
-    return InteractiveMessageBuilder.createSuccessCard(
-      'Merchant Approved',
-      `${merchant.business_name} has been approved!`,
-      [
-        { text: '📊 View Stats', id: 'admin_stats' },
-        { text: '👥 View Merchants', id: 'admin_merchants' }
-      ]
-    );
   }
 
   /**
    * !admin reject <merchant_id> [reason]
    */
   async handleRejectCommand(args, from, phoneNumber) {
-    if (!args[0]) {
-      return InteractiveMessageBuilder.createErrorCard(
-        'Merchant ID required',
-        ['Usage: !admin reject <merchant_id> [reason]']
-      );
+    try {
+      if (!args[0]) {
+        const msg = ResponseFormatter.error('Invalid Input', 'Usage: !admin reject <merchant_id> [reason]');
+        await this.messageService.sendTextMessage(from, msg);
+        return { success: false };
+      }
+
+      const merchantId = args[0];
+      const reason = args.slice(1).join(' ') || 'Does not meet requirements';
+      
+      const response = await backendAPI.rejectMerchant(merchantId, reason, phoneNumber);
+
+      if (!response.success) {
+        const msg = ResponseFormatter.error('Reject Failed', response.error || 'Could not reject merchant');
+        await this.messageService.sendTextMessage(from, msg);
+        return { success: false };
+      }
+
+      const successMsg = ResponseFormatter.success('Merchant Rejected', `Merchant application has been declined.\n\nReason: ${reason}`);
+      await this.messageService.sendTextMessage(from, successMsg);
+      return { success: true };
+    } catch (error) {
+      const msg = ResponseFormatter.error('Reject Failed', error.message);
+      await this.messageService.sendTextMessage(from, msg);
+      return { success: false, error: error.message };
     }
-
-    const merchantId = args[0];
-    const reason = args.slice(1).join(' ') || 'Does not meet requirements';
-    
-    const response = await backendAPI.rejectMerchant(merchantId, reason, phoneNumber);
-
-    if (!response.success) {
-      return InteractiveMessageBuilder.createErrorCard(`Failed to reject: ${response.error}`);
-    }
-
-    const merchant = response.data;
-    return InteractiveMessageBuilder.createSuccessCard(
-      'Merchant Rejected',
-      `${merchant.business_name} application rejected`,
-      [
-        { text: '👥 View Merchants', id: 'admin_merchants' },
-        { text: '📋 Menu', id: 'menu' }
-      ]
-    );
   }
 
   /**

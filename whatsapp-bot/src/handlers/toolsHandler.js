@@ -5,10 +5,19 @@
 
 const axios = require('axios');
 const fetch = require('node-fetch');
+const ResponseFormatter = require('../utils/responseFormatter');
 
 class ToolsHandler {
   constructor(cache = null) {
     this.cache = cache;
+    this.messageService = null;
+  }
+
+  /**
+   * Set message service for sending replies
+   */
+  setMessageService(messageService) {
+    this.messageService = messageService;
   }
 
   /**

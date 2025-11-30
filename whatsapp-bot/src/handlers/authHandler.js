@@ -11,12 +11,24 @@ const MessageFormatter = require('../utils/messageFormatter');
 const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
 const FlowManager = require('../utils/flowManager');
 const commandParser = require('../utils/commandParser');
+const ResponseFormatter = require('../utils/responseFormatter');
 const Logger = require('../config/logger');
 const constants = require('../config/constants');
 
 const logger = new Logger('AuthHandler');
 
 class AuthHandler {
+  constructor() {
+    this.messageService = null;
+  }
+
+  /**
+   * Set message service for sending replies
+   */
+  setMessageService(messageService) {
+    this.messageService = messageService;
+  }
+
   /**
    * Handle general/auth commands
    */

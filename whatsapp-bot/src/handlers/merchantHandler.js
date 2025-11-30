@@ -10,11 +10,23 @@ const databaseService = require('../database/service');
 const MessageFormatter = require('../utils/messageFormatter');
 const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
 const FlowManager = require('../utils/flowManager');
+const ResponseFormatter = require('../utils/responseFormatter');
 const Logger = require('../config/logger');
 
 const logger = new Logger('MerchantHandler');
 
 class MerchantHandler {
+  constructor() {
+    this.messageService = null;
+  }
+
+  /**
+   * Set message service for sending replies
+   */
+  setMessageService(messageService) {
+    this.messageService = messageService;
+  }
+
   /**
    * Handle merchant commands
    */
@@ -112,86 +124,110 @@ class MerchantHandler {
    * !merchant orders [new|today|week]
    */
   async handleOrdersCommand(args, merchantId, from) {
-    const timeframe = args[0]?.toLowerCase() || 'new';
+    try {
+      const timeframe = args[0]?.toLowerCase() || 'new';
 
-    const response = await backendAPI.getMerchantOrders(merchantId, { 
-      status: timeframe === 'new' ? 'pending' : undefined,
-      timeframe: timeframe !== 'new' ? timeframe : undefined,
-    });
+      const response = await backendAPI.getMerchantOrders(merchantId, { 
+        status: timeframe === 'new' ? 'pending' : undefined,
+        timeframe: timeframe !== 'new' ? timeframe : undefined,
+      });
 
-    if (!response.success) {
-      return InteractiveMessageBuilder.createErrorCard('Failed to fetch orders');
+      if (!response.success) {
+        const msg = ResponseFormatter.error('Orders', 'Failed to fetch orders');
+        await this.messageService.sendTextMessage(from, msg);
+        return { success: false };
+      }
+
+      const orders = response.data;
+      if (orders.length === 0) {
+        const msg = ResponseFormatter.info('No Orders', `No ${timeframe} orders found.`);
+        await this.messageService.sendTextMessage(from, msg);
+        return { success: true };
+      }
+
+      let message = `📦 *${timeframe.toUpperCase()} ORDERS (${orders.length})*\n`;
+      message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      
+      orders.slice(0, 10).forEach((order, i) => {
+        message += `${i + 1}. *Order #${order.id}*\n`;
+        message += `   👤 Customer: ${order.customer_name}\n`;
+        message += `   💰 Total: ZWL ${order.total.toFixed(2)}\n`;
+        message += `   ⏱️  Status: ${order.status}\n`;
+        message += `   📅 Date: ${new Date(order.created_at).toLocaleDateString()}\n\n`;
+      });
+
+      message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `✅ Accept: !merchant accept <id>\n`;
+      message += `❌ Reject: !merchant reject <id> [reason]\n`;
+      message += `📊 View: !merchant orders all`;
+
+      await this.messageService.sendTextMessage(from, message);
+      return { success: true };
+    } catch (error) {
+      const msg = ResponseFormatter.error('Orders', error.message || 'Failed to load orders');
+      await this.messageService.sendTextMessage(from, msg);
+      return { success: false, error: error.message };
     }
-
-    const orders = response.data;
-    if (orders.length === 0) {
-      return { message: `No ${timeframe} orders found.` };
-    }
-
-    return InteractiveMessageBuilder.listMessage(
-      `${timeframe.toUpperCase()} ORDERS`,
-      `${orders.length} order${orders.length !== 1 ? 's' : ''}`,
-      [{
-        title: 'Orders',
-        rows: orders.slice(0, 10).map((order, i) => ({
-          rowId: `order_${order.id}`,
-          title: `#${order.id} - ${order.customer_name}`,
-          description: `ZWL ${order.total.toFixed(2)} • ${order.status}`
-        }))
-      }],
-      'Tap to view details'
-    );
   }
 
   /**
    * !merchant accept <order_id>
    */
   async handleAcceptOrderCommand(orderId, merchantId, from) {
-    if (!orderId) {
-      return InteractiveMessageBuilder.createErrorCard(
-        'Order ID required',
-        ['Usage: !merchant accept <order_id>']
-      );
+    try {
+      if (!orderId) {
+        const msg = ResponseFormatter.error('Invalid Input', 'Usage: !merchant accept <order_id>');
+        await this.messageService.sendTextMessage(from, msg);
+        return { success: false };
+      }
+
+      const response = await backendAPI.updateOrderStatus(orderId, 'confirmed', merchantId);
+
+      if (!response.success) {
+        const msg = ResponseFormatter.error('Order Accept', 'Failed to accept order');
+        await this.messageService.sendTextMessage(from, msg);
+        return { success: false };
+      }
+
+      const order = response.data;
+      const successMsg = ResponseFormatter.success('Order Accepted', `Order #${order.id} confirmed!\nCustomer: ${order.customer_name}`);
+      await this.messageService.sendTextMessage(from, successMsg);
+      return { success: true };
+    } catch (error) {
+      const msg = ResponseFormatter.error('Order Accept', error.message);
+      await this.messageService.sendTextMessage(from, msg);
+      return { success: false, error: error.message };
     }
-
-    const response = await backendAPI.updateOrderStatus(orderId, 'confirmed', merchantId);
-
-    if (!response.success) {
-      return InteractiveMessageBuilder.createErrorCard('Failed to accept order');
-    }
-
-    const order = response.data;
-    return InteractiveMessageBuilder.createSuccessCard(
-      'Order Accepted',
-      `Order #${order.id} confirmed!\nCustomer: ${order.customer_name}`,
-      [
-        { text: '📦 View Orders', id: 'merchant_orders' },
-        { text: '📋 Menu', id: 'menu' }
-      ]
-    );
   }
 
   /**
    * !merchant reject <order_id> [reason]
    */
   async handleRejectOrderCommand(orderId, reason, merchantId, from) {
-    if (!orderId) {
-      return { error: 'Usage: !merchant reject <order_id> [reason]' };
+    try {
+      if (!orderId) {
+        const msg = ResponseFormatter.error('Invalid Input', 'Usage: !merchant reject <order_id> [reason]');
+        await this.messageService.sendTextMessage(from, msg);
+        return { success: false };
+      }
+
+      const response = await backendAPI.updateOrderStatus(orderId, 'cancelled', merchantId);
+
+      if (!response.success) {
+        const msg = ResponseFormatter.error('Order Reject', 'Failed to reject order');
+        await this.messageService.sendTextMessage(from, msg);
+        return { success: false };
+      }
+
+      const order = response.data;
+      const rejectMsg = ResponseFormatter.success('Order Rejected', `Order #${order.id} has been cancelled.\n\nReason: ${reason || 'Out of stock'}`);
+      await this.messageService.sendTextMessage(from, rejectMsg);
+      return { success: true };
+    } catch (error) {
+      const msg = ResponseFormatter.error('Order Reject', error.message);
+      await this.messageService.sendTextMessage(from, msg);
+      return { success: false, error: error.message };
     }
-
-    const response = await backendAPI.updateOrderStatus(orderId, 'cancelled', merchantId);
-
-    if (!response.success) {
-      return { error: 'Failed to reject order' };
-    }
-
-    const order = response.data;
-    const customerMessage = `❌ *Your order #${order.id} could not be fulfilled*\n\nReason: ${reason || 'Out of stock'}\n\nWe apologize for the inconvenience.`;
-
-    return {
-      message: MessageFormatter.formatSuccess('Order rejected'),
-      notifyUser: { phone: order.customer_phone, message: customerMessage },
-    };
   }
 
   /**
@@ -247,50 +283,70 @@ class MerchantHandler {
    * !merchant products [list|search <query>]
    */
   async handleProductsCommand(args, merchantId, from) {
-    if (args[0] === 'search' && args[1]) {
-      const query = args.slice(1).join(' ');
-      const response = await backendAPI.searchProducts(query, { merchant_id: merchantId });
-      
-      if (!response.success || response.data.length === 0) {
-        return { message: `No products found for "${query}"` };
+    try {
+      if (args[0] === 'search' && args[1]) {
+        const query = args.slice(1).join(' ');
+        const response = await backendAPI.searchProducts(query, { merchant_id: merchantId });
+        
+        if (!response.success || response.data.length === 0) {
+          const msg = ResponseFormatter.info('No Results', `No products found for "${query}"`);
+          await this.messageService.sendTextMessage(from, msg);
+          return { success: false };
+        }
+
+        let message = `🔍 *SEARCH RESULTS FOR "${query}"*\n`;
+        message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        message += `Found ${response.data.length} product(s)\n\n`;
+        
+        response.data.forEach((p, i) => {
+          message += `${i + 1}. *${p.name}*\n`;
+          message += `   💰 Price: ZWL ${p.price.toFixed(2)}\n`;
+          message += `   📦 Stock: ${p.stock || '✓'}\n`;
+          message += `   🔑 ID: ${p.id}\n\n`;
+        });
+
+        await this.messageService.sendTextMessage(from, message);
+        return { success: true };
       }
 
-      let message = `*Search Results for "${query}" (${response.data.length})*\n━━━━━━━━━━━━━━━\n\n`;
-      response.data.forEach((p, i) => {
-        message += `${i + 1}. ${MessageFormatter.truncate(p.name, 30)}\n`;
-        message += `   Price: ZWL ${p.price.toFixed(2)}\n`;
-        message += `   Stock: ${p.stock || '✓'}\n`;
-        message += `   ID: \`${p.id}\`\n\n`;
+      // List all products
+      const response = await backendAPI.getProducts(merchantId);
+      if (!response.success) {
+        const msg = ResponseFormatter.error('Products', 'Failed to fetch products');
+        await this.messageService.sendTextMessage(from, msg);
+        return { success: false };
+      }
+
+      const products = response.data;
+      if (products.length === 0) {
+        const msg = ResponseFormatter.info('No Products', 'You have no products yet.\n\nStart by adding a product: !merchant add-product');
+        await this.messageService.sendTextMessage(from, msg);
+        return { success: true };
+      }
+
+      let message = `📦 *YOUR PRODUCTS (${products.length})*\n`;
+      message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      
+      products.slice(0, 10).forEach((p, i) => {
+        message += `${i + 1}. *${p.name}*\n`;
+        message += `   💰 Price: ZWL ${p.price.toFixed(2)}\n`;
+        message += `   📦 Stock: ${p.stock || '✓ Available'}\n`;
+        message += `   👁️  Status: ${p.is_visible ? '👁️ Visible' : '🙈 Hidden'}\n`;
+        message += `   🔑 ID: ${p.id}\n\n`;
       });
 
-      return { message };
+      message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `📝 Edit: !merchant edit-product <id>\n`;
+      message += `🗑️  Delete: !merchant delete-product <id>\n`;
+      message += `➕ Add new: !merchant add-product`;
+
+      await this.messageService.sendTextMessage(from, message);
+      return { success: true };
+    } catch (error) {
+      const msg = ResponseFormatter.error('Products', error.message || 'Failed to load products');
+      await this.messageService.sendTextMessage(from, msg);
+      return { success: false, error: error.message };
     }
-
-    // List all products
-    const response = await backendAPI.getProducts(merchantId);
-    if (!response.success) {
-      return { error: 'Failed to fetch products' };
-    }
-
-    const products = response.data;
-    if (products.length === 0) {
-      return { message: 'You have no products yet. Type *!merchant add-product* to add one.' };
-    }
-
-    let message = `*Your Products (${products.length})*\n━━━━━━━━━━━━━━━\n\n`;
-    products.slice(0, 10).forEach((p, i) => {
-      message += `${i + 1}. *${p.name}*\n`;
-      message += `   Price: ZWL ${p.price.toFixed(2)}\n`;
-      message += `   Stock: ${p.stock || '✓ Available'}\n`;
-      message += `   Status: ${p.is_visible ? '👁️ Visible' : '🙈 Hidden'}\n`;
-      message += `   ID: \`${p.id}\`\n\n`;
-    });
-
-    message += `\nTo edit: *!merchant edit-product <id>*\n`;
-    message += `To delete: *!merchant delete-product <id>*\n`;
-    message += `To add: *!merchant add-product*`;
-
-    return { message };
   }
 
   /**
@@ -459,24 +515,36 @@ What would you like to edit?
    * !merchant dashboard
    */
   async handleDashboardCommand(merchantId, from) {
-    const ordersRes = await backendAPI.getMerchantOrders(merchantId, { status: 'pending' });
-    const analyticsRes = await backendAPI.getMerchantAnalytics(merchantId, 'today');
+    try {
+      const ordersRes = await backendAPI.getMerchantOrders(merchantId, { status: 'pending' });
+      const analyticsRes = await backendAPI.getMerchantAnalytics(merchantId, 'today');
 
-    const dashboardItems = [
-      { emoji: '📦', label: 'New Orders', value: ordersRes.success ? ordersRes.data.filter(o => o.status === 'pending').length : 0 },
-      { emoji: '💰', label: "Today's Revenue", value: analyticsRes.success ? `ZWL ${(analyticsRes.data.revenue_today || 0).toFixed(2)}` : 'N/A' },
-      { emoji: '📊', label: "Today's Orders", value: analyticsRes.success ? analyticsRes.data.orders_today || 0 : 0 }
-    ];
+      const pendingOrders = ordersRes.success ? ordersRes.data.filter(o => o.status === 'pending').length : 0;
+      const todayRevenue = analyticsRes.success ? (analyticsRes.data.revenue_today || 0).toFixed(2) : '0.00';
+      const todayOrdersCount = analyticsRes.success ? analyticsRes.data.orders_today || 0 : 0;
 
-    return InteractiveMessageBuilder.createStatusCard(
-      '🏪 MERCHANT DASHBOARD',
-      dashboardItems,
-      [
-        { text: '📦 View Orders', id: 'merchant_orders' },
-        { text: '📊 Analytics', id: 'merchant_analytics' },
-        { text: '📋 Menu', id: 'menu' }
-      ]
-    );
+      const dashboardContent = `
+🏪 *MERCHANT DASHBOARD*
+━━━━━━━━━━━━━━━━━━━━━━
+*TODAY'S OVERVIEW*
+📦 Pending Orders: ${pendingOrders}
+💰 Revenue: ZWL ${todayRevenue}
+📊 Total Orders: ${todayOrdersCount}
+
+*QUICK ACTIONS*
+• !merchant orders - View all orders
+• !merchant products - Manage products
+• !merchant analytics - View detailed analytics
+• !merchant settings - Adjust preferences
+      `.trim();
+
+      await this.messageService.sendTextMessage(from, dashboardContent);
+      return { success: true };
+    } catch (error) {
+      const errorMsg = ResponseFormatter.error('Dashboard', error.message || 'Failed to load dashboard');
+      await this.messageService.sendTextMessage(from, errorMsg);
+      return { success: false, error: error.message };
+    }
   }
 
   /**

@@ -3,6 +3,8 @@
  * Handles: botstatus, ping, repo, runtime, time commands
  */
 
+const ResponseFormatter = require('../utils/responseFormatter');
+
 class OtherHandler {
   constructor() {
     this.messageService = null;
@@ -32,11 +34,13 @@ class OtherHandler {
         case 'currenttime':
           return await this.handleTimeCommand(from);
         default:
-          return await this.messageService.sendTextMessage(from, '❌ Unknown other command');
+          const msg = ResponseFormatter.error('Unknown Command', 'This command is not recognized');
+          return await this.messageService.sendTextMessage(from, msg);
       }
     } catch (error) {
       console.error('Error in other handler:', error);
-      return await this.messageService.sendTextMessage(from, `❌ Command error: ${error.message}`);
+      const msg = ResponseFormatter.error('Command Error', error.message);
+      return await this.messageService.sendTextMessage(from, msg);
     }
   }
 
@@ -44,174 +48,183 @@ class OtherHandler {
    * !botstatus / !status - Show bot status
    */
   async handleBotStatusCommand(from) {
-    const statusMessage = `
+    try {
+      const uptimeStr = this.getUptimeString();
+      const statusMsg = `
 🤖 *BOT STATUS*
-
-✅ Status: Online
-⚡ Version: 2.0
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Status: Online & Ready
+⚡ Version: 2.0.0
 🔧 Database: Active
 📡 Connection: Stable
 🎮 Commands: 100+
-💾 Uptime: ${this.getUptimeString()}
+💾 Uptime: ${uptimeStr}
 
-*Performance:*
+*PERFORMANCE METRICS:*
 🚀 Response Time: < 500ms
 📊 Success Rate: 99.8%
-🔄 Commands/hour: 1000+
+🔄 Requests/Hour: 1000+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Type !help for more info!
-    `.trim();
+For detailed help, use: !help
+      `.trim();
 
-    return await this.messageService.sendTextMessage(from, statusMessage);
+      await this.messageService.sendTextMessage(from, statusMsg);
+      return { success: true };
+    } catch (error) {
+      const msg = ResponseFormatter.error('Status Check', error.message);
+      await this.messageService.sendTextMessage(from, msg);
+      return { success: false };
+    }
   }
 
   /**
    * !ping - Check bot responsiveness
    */
   async handlePingCommand(from) {
-    const startTime = Date.now();
-    
-    const message = await this.messageService.sendTextMessage(
-      from,
-      '🏓 Pong!'
-    );
-    
-    const responseTime = Date.now() - startTime;
-    const emoji = responseTime < 100 ? '⚡' : responseTime < 500 ? '✅' : '⚠️';
-    
-    const statusMessage = `
-🏓 *PING*
-
+    try {
+      const startTime = Date.now();
+      const responseTime = Date.now() - startTime;
+      const emoji = responseTime < 100 ? '⚡' : responseTime < 500 ? '✅' : '⚠️';
+      const latency = responseTime < 100 ? 'Excellent' : responseTime < 500 ? 'Good' : 'Fair';
+      
+      const pingMsg = `
+🏓 *PING TEST*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${emoji} Response Time: ${responseTime}ms
-🌐 Connection: Excellent
-📍 Latency: ${responseTime < 100 ? 'Very Low' : responseTime < 500 ? 'Low' : 'High'}
-✅ Bot: Responsive
+🌐 Connection: Stable
+📍 Latency: ${latency}
+✅ Bot Status: Responsive
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Type !ping again for another test!
-    `.trim();
+Run !ping again for another test.
+      `.trim();
 
-    return await this.messageService.sendTextMessage(from, statusMessage);
+      await this.messageService.sendTextMessage(from, pingMsg);
+      return { success: true };
+    } catch (error) {
+      const msg = ResponseFormatter.error('Ping Test', error.message);
+      await this.messageService.sendTextMessage(from, msg);
+      return { success: false };
+    }
   }
 
   /**
    * !repo - Show repository info
    */
   async handleRepoCommand(from) {
-    const repoMessage = `
+    try {
+      const repoMsg = `
 📦 *REPOSITORY INFO*
-
-🏢 Project: Ultimate WhatsApp Bot
-👤 Author: Development Team
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏢 Project: Smart WhatsApp Bot
+👤 Team: Development Team
 📁 GitHub: github.com/ultimate-bot
 
-*Repository Stats:*
-📊 Commands: 100+
-🎯 Features: 50+
-✅ Test Coverage: 95%
-📈 Performance: Optimized
-🔒 Security: Enterprise-Grade
+*REPOSITORY STATS:*
+🎯 Commands: 100+
+⚙️ Features: 50+
+✅ Tests: 95% Coverage
+🚀 Performance: Optimized
+🔒 Security: Enterprise
 
-*Tech Stack:*
-⚙️ Runtime: Node.js 22.x
-📚 Library: Baileys v7
+*TECH STACK:*
+💻 Runtime: Node.js 22.x
+📚 WhatsApp: Baileys v7
 🗄️ Database: PostgreSQL/JSON
-🌐 API: Express.js
-⚛️ Frontend: React + Vite
+📡 API: Express.js
+⚡ Real-time: WebSockets
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-*Latest Updates:*
-🆕 Fun & Games Commands
-🎮 Interactive Message Flows
-🚀 Performance Improvements
-🔒 Security Enhancements
+Visit the repository for more details!
+      `.trim();
 
-Visit repository for more details!
-    `.trim();
-
-    return await this.messageService.sendTextMessage(from, repoMessage);
+      await this.messageService.sendTextMessage(from, repoMsg);
+      return { success: true };
+    } catch (error) {
+      const msg = ResponseFormatter.error('Repo Info', error.message);
+      await this.messageService.sendTextMessage(from, msg);
+      return { success: false };
+    }
   }
 
   /**
    * !runtime - Show bot runtime statistics
    */
   async handleRuntimeCommand(from) {
-    const uptime = this.getUptimeString();
-    const memUsage = process.memoryUsage();
-    const heapUsedPercent = ((memUsage.heapUsed / memUsage.heapTotal) * 100).toFixed(2);
+    try {
+      const uptime = this.getUptimeString();
+      const memUsage = process.memoryUsage();
+      const heapUsedPercent = ((memUsage.heapUsed / memUsage.heapTotal) * 100).toFixed(2);
 
-    const runtimeMessage = `
-⏱️ *RUNTIME STATISTICS*
+      let runtimeMsg = '⏱️  *RUNTIME STATISTICS*\n';
+      runtimeMsg += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+      runtimeMsg += '*UPTIME:*\n';
+      runtimeMsg += '⏰ Session: ' + uptime + '\n';
+      runtimeMsg += '📅 Started: ' + this.startTime.toLocaleString() + '\n\n';
+      runtimeMsg += '*MEMORY:*\n';
+      runtimeMsg += '💾 Heap Used: ' + (memUsage.heapUsed / 1024 / 1024).toFixed(2) + 'MB\n';
+      runtimeMsg += '📊 Heap Total: ' + (memUsage.heapTotal / 1024 / 1024).toFixed(2) + 'MB\n';
+      runtimeMsg += '📈 Usage: ' + heapUsedPercent + '%\n\n';
+      runtimeMsg += '*SYSTEM:*\n';
+      runtimeMsg += '🖥️  Platform: ' + process.platform + '\n';
+      runtimeMsg += '📌 Node: ' + process.version + '\n';
+      runtimeMsg += '🔄 PID: ' + process.pid + '\n';
+      runtimeMsg += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+      runtimeMsg += 'Check: !botstatus';
 
-*Uptime:*
-⏰ Current Session: ${uptime}
-📅 Started: ${this.startTime.toLocaleString()}
-
-*Memory Usage:*
-💾 Heap Used: ${(memUsage.heapUsed / 1024 / 1024).toFixed(2)} MB
-📊 Heap Total: ${(memUsage.heapTotal / 1024 / 1024).toFixed(2)} MB
-📈 Usage: ${heapUsedPercent}%
-🔄 External: ${(memUsage.external / 1024 / 1024).toFixed(2)} MB
-
-*Performance Metrics:*
-🚀 CPU: Optimal
-🔌 Connection: Stable
-📡 Network: Active
-⚡ Response: < 500ms
-✅ Status: Healthy
-
-*System Info:*
-🖥️ Platform: ${process.platform}
-🔢 Node Version: ${process.version}
-⚙️ Uptime: ${this.getUptimeString()}
-
-For detailed monitoring, check dashboard!
-    `.trim();
-
-    return await this.messageService.sendTextMessage(from, runtimeMessage);
+      await this.messageService.sendTextMessage(from, runtimeMsg);
+      return { success: true };
+    } catch (error) {
+      const msg = ResponseFormatter.error('Runtime', error.message);
+      await this.messageService.sendTextMessage(from, msg);
+      return { success: false };
+    }
   }
 
   /**
    * !time / !currenttime - Show current time
    */
   async handleTimeCommand(from) {
-    const now = new Date();
-    const timeString = now.toLocaleString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
+    try {
+      const now = new Date();
+      const timeString = now.toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
 
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const hours = now.getHours();
-    let timeEmoji = '🌙';
-    if (hours >= 5 && hours < 12) timeEmoji = '🌅';
-    else if (hours >= 12 && hours < 17) timeEmoji = '☀️';
-    else if (hours >= 17 && hours < 21) timeEmoji = '🌅';
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const hours = now.getHours();
+      let timeEmoji = '🌙';
+      if (hours >= 5 && hours < 12) timeEmoji = '🌅';
+      else if (hours >= 12 && hours < 17) timeEmoji = '☀️';
+      else if (hours >= 17 && hours < 21) timeEmoji = '🌄';
 
-    const timeMessage = `
-${timeEmoji} *CURRENT TIME*
+      let timeMsg = timeEmoji + ' *CURRENT TIME*\n';
+      timeMsg += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+      timeMsg += '⏰ ' + timeString + '\n';
+      timeMsg += '🌍 Timezone: ' + timeZone + '\n';
+      timeMsg += '📍 UTC: ' + this.getUTCOffset() + '\n\n';
+      timeMsg += '*TIME DETAILS:*\n';
+      timeMsg += '🕐 Hour: ' + String(now.getHours()).padStart(2, '0') + '\n';
+      timeMsg += '🕑 Minute: ' + String(now.getMinutes()).padStart(2, '0') + '\n';
+      timeMsg += '🕒 Second: ' + String(now.getSeconds()).padStart(2, '0') + '\n';
+      timeMsg += '📅 Date: ' + now.toDateString() + '\n';
+      timeMsg += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
 
-⏰ ${timeString}
-🌍 Timezone: ${timeZone}
-📍 UTC Offset: ${this.getUTCOffset()}
-
-*Time Details:*
-🕐 Hour: ${String(now.getHours()).padStart(2, '0')}
-🕑 Minute: ${String(now.getMinutes()).padStart(2, '0')}
-🕒 Second: ${String(now.getSeconds()).padStart(2, '0')}
-📅 Date: ${now.toDateString()}
-
-*Quick Info:*
-${this.getTimeGreeting(hours)}
-
-Use !time to update the clock!
-    `.trim();
-
-    return await this.messageService.sendTextMessage(from, timeMessage);
+      await this.messageService.sendTextMessage(from, timeMsg);
+      return { success: true };
+    } catch (error) {
+      const msg = ResponseFormatter.error('Time', error.message);
+      await this.messageService.sendTextMessage(from, msg);
+      return { success: false };
+    }
   }
 
   /**
@@ -227,13 +240,13 @@ Use !time to update the clock!
     const seconds = Math.floor((elapsed / 1000) % 60);
 
     if (days > 0) {
-      return `${days}d ${hours}h ${minutes}m`;
+      return days + 'd ' + hours + 'h ' + minutes + 'm';
     } else if (hours > 0) {
-      return `${hours}h ${minutes}m ${seconds}s`;
+      return hours + 'h ' + minutes + 'm ' + seconds + 's';
     } else if (minutes > 0) {
-      return `${minutes}m ${seconds}s`;
+      return minutes + 'm ' + seconds + 's';
     } else {
-      return `${seconds}s`;
+      return seconds + 's';
     }
   }
 
@@ -246,7 +259,7 @@ Use !time to update the clock!
     const sign = offset > 0 ? '+' : '-';
     const hours = Math.floor(Math.abs(offset) / 60);
     const minutes = Math.abs(offset) % 60;
-    return `UTC${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    return 'UTC' + sign + String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
   }
 
   /**
