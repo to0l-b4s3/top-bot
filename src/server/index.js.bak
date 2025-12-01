@@ -222,7 +222,7 @@ app.get('/api/merchants/:id', (req, res) => {
       return res.status(404).json({ success: false, error: 'Merchant not found' });
     }
 
-    res.json({ success: true, data: merchant });
+    res.json({ success: true, merchant });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -245,7 +245,7 @@ app.put('/api/merchants/:id', (req, res) => {
     };
 
     writeData('merchants', merchants);
-    res.json({ success: true, data: merchants[merchantIndex] });
+    res.json({ success: true, merchant: merchants[merchantIndex] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -255,7 +255,7 @@ app.get('/api/admin/merchants/pending', (req, res) => {
   try {
     const merchants = readData('merchants');
     const pending = merchants.filter(m => m.status === 'pending');
-    res.json({ success: true, data: pending });
+    res.json({ success: true, merchants: pending });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -275,7 +275,7 @@ app.post('/api/admin/merchants/:id/approve', (req, res) => {
     merchants[merchantIndex].updated_at = new Date().toISOString();
 
     writeData('merchants', merchants);
-    res.json({ success: true, data: merchants[merchantIndex], message: 'Merchant approved' });
+    res.json({ success: true, message: 'Merchant approved', merchant: merchants[merchantIndex] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -295,7 +295,7 @@ app.post('/api/admin/merchants/:id/reject', (req, res) => {
     merchants[merchantIndex].updated_at = new Date().toISOString();
 
     writeData('merchants', merchants);
-    res.json({ success: true, data: merchants[merchantIndex], message: 'Merchant rejected' });
+    res.json({ success: true, message: 'Merchant rejected', merchant: merchants[merchantIndex] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -348,7 +348,7 @@ app.get('/api/merchants/:merchantId/products', (req, res) => {
     const { merchantId } = req.params;
     const products = readData('products');
     const merchantProducts = products.filter(p => p.merchant_id === merchantId);
-    res.json({ success: true, data: merchantProducts });
+    res.json({ success: true, products: merchantProducts });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -364,7 +364,7 @@ app.get('/api/products/:id', (req, res) => {
       return res.status(404).json({ success: false, error: 'Product not found' });
     }
 
-    res.json({ success: true, data: product });
+    res.json({ success: true, product });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -387,7 +387,7 @@ app.put('/api/products/:id', (req, res) => {
     };
 
     writeData('products', products);
-    res.json({ success: true, data: products[productIndex] });
+    res.json({ success: true, product: products[productIndex] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -405,7 +405,7 @@ app.delete('/api/products/:id', (req, res) => {
 
     const deleted = products.splice(productIndex, 1);
     writeData('products', products);
-    res.json({ success: true, data: deleted[0], message: 'Product deleted' });
+    res.json({ success: true, message: 'Product deleted', product: deleted[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -484,7 +484,7 @@ app.get('/api/orders/:id', (req, res) => {
       return res.status(404).json({ success: false, error: 'Order not found' });
     }
 
-    res.json({ success: true, data: order });
+    res.json({ success: true, order });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -507,7 +507,7 @@ app.put('/api/orders/:id', (req, res) => {
     };
 
     writeData('orders', orders);
-    res.json({ success: true, data: orders[orderIndex] });
+    res.json({ success: true, order: orders[orderIndex] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -518,7 +518,7 @@ app.get('/api/customers/:phone/orders', (req, res) => {
     const { phone } = req.params;
     const orders = readData('orders');
     const customerOrders = orders.filter(o => o.customer_phone === phone);
-    res.json({ success: true, data: customerOrders });
+    res.json({ success: true, orders: customerOrders });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -529,7 +529,7 @@ app.get('/api/merchants/:merchantId/orders', (req, res) => {
     const { merchantId } = req.params;
     const orders = readData('orders');
     const merchantOrders = orders.filter(o => o.merchant_id === merchantId);
-    res.json({ success: true, data: merchantOrders });
+    res.json({ success: true, orders: merchantOrders });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -576,10 +576,10 @@ app.get('/api/carts/:phone', (req, res) => {
     const cart = carts.find(c => c.phone_number === phone);
 
     if (!cart) {
-      return res.json({ success: true, data: { items: [] } });
+      return res.json({ success: true, cart: { items: [] } });
     }
 
-    res.json({ success: true, data: cart });
+    res.json({ success: true, cart });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -649,7 +649,7 @@ app.get('/api/favorites/:phone', (req, res) => {
       products.find(p => p.id === f.product_id)
     ).filter(Boolean);
 
-    res.json({ success: true, data: favoriteProducts });
+    res.json({ success: true, products: favoriteProducts });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

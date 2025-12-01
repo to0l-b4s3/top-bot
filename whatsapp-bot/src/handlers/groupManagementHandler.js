@@ -199,110 +199,75 @@ Available commands:
   }
 
   /**
-   * !kick <@mention> - Remove member from group
+   * !kick <phone> - Remove member from group
    */
-  async handleKickCommand(args, phoneNumber, from) {
-    const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
-
-    if (!args[0]) {
-      return InteractiveMessageBuilder.createErrorCard(
-        'Member Required',
-        ['Usage: !kick <@mention>']
-      );
+  async handleKickCommand(phoneNumber, from, memberPhone) {
+    const msg = `🚫 *MEMBER REMOVED*\n\nMember ${memberPhone} has been removed from the group.\n\nReason: Admin action`;
+    
+    if (this.messageService) {
+      await this.messageService.sendTextMessage(from, msg);
     }
-
-    return InteractiveMessageBuilder.createSuccessCard(
-      '👋 Member Removed',
-      'The member has been removed from the group.',
-      [
-        { text: '👤 Kick Another', id: 'kick' },
-        { text: '👥 Group Tools', id: 'grouptools' }
-      ]
-    );
+    return { success: true, text: msg };
   }
 
   /**
-   * !mute - Mute group notifications
+   * !mute [duration] - Mute group notifications
    */
-  async handleMuteCommand(phoneNumber, from) {
-    const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
-    const FlowManager = require('../utils/flowManager');
-
-    const durations = [
-      { id: 'mute_1h', text: '1 Hour', description: 'Mute for 1 hour' },
-      { id: 'mute_8h', text: '8 Hours', description: 'Mute for 8 hours' },
-      { id: 'mute_1d', text: '1 Day', description: 'Mute for 1 day' },
-      { id: 'mute_1w', text: '1 Week', description: 'Mute for 1 week' },
-      { id: 'mute_perm', text: 'Forever', description: 'Mute permanently' }
-    ];
-
-    return FlowManager.argumentSelectorFlow(
-      '🔇 MUTE GROUP',
-      'How long would you like to mute?',
-      durations
-    ).interactive;
+  async handleMuteCommand(phoneNumber, from, duration = '1h') {
+    const msg = `🔇 *GROUP MUTED*\n\nGroup notifications muted for: ${duration}\n\nUse !unmute to restore`;
+    
+    if (this.messageService) {
+      await this.messageService.sendTextMessage(from, msg);
+    }
+    return { success: true, text: msg };
   }
 
   /**
    * !unmute - Unmute group notifications
    */
   async handleUnmuteCommand(phoneNumber, from) {
-    const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
-
-    return InteractiveMessageBuilder.createSuccessCard(
-      '🔔 Group Unmuted',
-      'You will now receive notifications from this group.',
-      [
-        { text: '🔇 Mute Again', id: 'mute' },
-        { text: '👥 Group Tools', id: 'grouptools' }
-      ]
-    );
+    const msg = `🔊 *GROUP UNMUTED*\n\nGroup notifications restored!\n\nYou will now receive all group messages`;
+    
+    if (this.messageService) {
+      await this.messageService.sendTextMessage(from, msg);
+    }
+    return { success: true, text: msg };
   }
 
   /**
-   * !promote <@mention> - Make member admin
+   * !pin <text> - Pin a message in group
    */
-  async handlePromoteCommand(args, phoneNumber, from) {
-    const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
-
-    if (!args[0]) {
-      return InteractiveMessageBuilder.createErrorCard(
-        'Member Required',
-        ['Usage: !promote <@mention>']
-      );
+  async handlePinCommand(phoneNumber, from, messageText) {
+    const msg = `📌 *MESSAGE PINNED*\n\nPinned: "${messageText}"\n\nThis message is now pinned in the group`;
+    
+    if (this.messageService) {
+      await this.messageService.sendTextMessage(from, msg);
     }
-
-    return InteractiveMessageBuilder.createSuccessCard(
-      '⬆️ Member Promoted',
-      'The member has been promoted to admin.',
-      [
-        { text: '👮 Promote Another', id: 'promote' },
-        { text: '👥 Group Tools', id: 'grouptools' }
-      ]
-    );
+    return { success: true, text: msg };
   }
 
   /**
-   * !demote <@mention> - Remove admin status
+   * !unpin - Unpin messages from group
    */
-  async handleDemoteCommand(args, phoneNumber, from) {
-    const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
-
-    if (!args[0]) {
-      return InteractiveMessageBuilder.createErrorCard(
-        'Member Required',
-        ['Usage: !demote <@mention>']
-      );
+  async handleUnpinCommand(phoneNumber, from) {
+    const msg = `📌 *PINNED MESSAGES CLEARED*\n\nAll pinned messages have been removed`;
+    
+    if (this.messageService) {
+      await this.messageService.sendTextMessage(from, msg);
     }
+    return { success: true, text: msg };
+  }
 
-    return InteractiveMessageBuilder.createSuccessCard(
-      '⬇️ Member Demoted',
-      'The member has been removed from admin.',
-      [
-        { text: '👤 Demote Another', id: 'demote' },
-        { text: '👥 Group Tools', id: 'grouptools' }
-      ]
-    );
+  /**
+   * !warn <member> [reason] - Warn a group member
+   */
+  async handleWarnCommand(phoneNumber, from, memberPhone, reason = '') {
+    const msg = `⚠️  *WARNING ISSUED*\n\nMember: ${memberPhone}\n${reason ? `Reason: ${reason}` : 'Reason: Not specified'}\n\nThis is a formal warning. Repeated violations may result in removal`;
+    
+    if (this.messageService) {
+      await this.messageService.sendTextMessage(from, msg);
+    }
+    return { success: true, text: msg };
   }
 
   // ===== Helper Methods =====
@@ -358,29 +323,6 @@ Available commands:
     if (memberCount > 50) return 'Medium ⚖️';
     if (memberCount > 10) return 'Low 📉';
     return 'Very Low 🔼';
-  }
-
-  /**
-   * Main command handler - routes group commands
-   */
-  async handleGroupCommand(command, args, from, cleanPhone, isGroup = false) {
-    try {
-      switch (command) {
-        case 'groupmenu':
-        case 'grouptools':
-          return await this.handleGroupToolsCommand(null, from, isGroup);
-        case 'groupinfo':
-          return await this.handleGroupInfoCommand(null, from, {});
-        case 'memberlist':
-          return await this.handleMemberListCommand(null, from, {});
-        case 'groupstats':
-          return await this.handleGroupStatsCommand(null, from, {});
-        default:
-          return { text: '❌ Unknown group command' };
-      }
-    } catch (error) {
-      return { text: `❌ Group command error: ${error.message}` };
-    }
   }
 
   setMessageService(messageService) {
