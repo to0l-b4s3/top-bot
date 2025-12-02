@@ -54,124 +54,78 @@ Available commands:
    * !groupinfo - Get group information
    */
   async handleGroupInfoCommand(phoneNumber, from, groupData) {
-    const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
-
     if (!groupData) {
-      return InteractiveMessageBuilder.createErrorCard(
-        'Group Info Unavailable',
-        ['Could not retrieve group information']
-      );
+      const msg = '❌ Could not retrieve group information';
+      if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+      return { success: false, text: msg };
     }
 
-    return InteractiveMessageBuilder.createStatusCard(
-      `📊 ${groupData.subject || 'Group Info'}`,
-      [
-        { label: 'Members', value: (groupData.participants?.length || 0).toString(), emoji: '👥' },
-        { label: 'Created', value: this.formatDate(groupData.creation), emoji: '📅' },
-        { label: 'Owner', value: this.formatJid(groupData.owner), emoji: '👑' },
-        { label: 'Description', value: groupData.desc || 'No description', emoji: '📝' },
-        { label: 'Restricted', value: groupData.restrict ? 'Yes' : 'No', emoji: '🔒' }
-      ],
-      [
-        { text: '👥 Member List', id: 'memberlist' },
-        { text: '📊 Group Stats', id: 'groupstats' }
-      ]
-    );
+    const msg = `📊 *GROUP INFORMATION*\n\n👥 *Members:* ${groupData.participants?.length || 0}\n📅 *Created:* ${this.formatDate(groupData.creation)}\n👑 *Owner:* ${this.formatJid(groupData.owner)}`;
+    if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+    return { success: true, text: msg };
   }
 
   /**
    * !memberlist - List group members
    */
   async handleMemberListCommand(phoneNumber, from, groupData) {
-    const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
-
     if (!groupData || !groupData.participants) {
-      return InteractiveMessageBuilder.createErrorCard(
-        'No Members Found',
-        ['Could not retrieve member list']
-      );
+      const msg = '❌ Could not retrieve member list';
+      if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+      return { success: false, text: msg };
     }
 
-    const members = groupData.participants.map((p, idx) => ({
-      id: `member_${idx}`,
-      text: this.formatJid(p.id),
-      description: this.getMemberRole(p)
-    }));
+    const members = groupData.participants.slice(0, 20);
+    const memberList = members
+      .map((p, idx) => `${idx + 1}. ${this.formatJid(p.id)}`)
+      .join('\n');
 
-    return InteractiveMessageBuilder.listMessage(
-      `👥 Group Members (${members.length})`,
-      'Tap to view member details',
-      [{ title: 'Members', rows: members.slice(0, 10) }]
-    );
+    const msg = `👥 *GROUP MEMBERS* (${groupData.participants.length})\n\n${memberList}`;
+    if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+    return { success: true, text: msg };
   }
 
   /**
    * !groupstats - Group statistics
    */
   async handleGroupStatsCommand(phoneNumber, from, groupData) {
-    const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
-
     if (!groupData) {
-      return InteractiveMessageBuilder.createErrorCard(
-        'Stats Unavailable',
-        ['Could not calculate group statistics']
-      );
+      const msg = '❌ Could not calculate group statistics';
+      if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+      return { success: false, text: msg };
     }
 
     const stats = this.calculateGroupStats(groupData);
 
-    return InteractiveMessageBuilder.createStatusCard(
-      '📈 Group Statistics',
-      [
-        { label: 'Total Members', value: stats.totalMembers.toString(), emoji: '👥' },
-        { label: 'Admins', value: stats.adminCount.toString(), emoji: '👮' },
-        { label: 'Regular Members', value: stats.regularMembers.toString(), emoji: '👤' },
-        { label: 'Group Age', value: stats.groupAge, emoji: '⏰' },
-        { label: 'Activity Level', value: stats.activityLevel, emoji: '📊' }
-      ],
-      [
-        { text: '📊 Refresh Stats', id: 'groupstats' },
-        { text: '👥 Group Tools', id: 'grouptools' }
-      ]
-    );
+    const msg = `📈 *GROUP STATISTICS*\n\n👥 *Members:* ${stats.totalMembers}\n👮 *Admins:* ${stats.adminCount}\n⏰ *Group Age:* ${stats.groupAge}\n📊 *Activity:* ${stats.activityLevel}`;
+    if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+    return { success: true, text: msg };
   }
 
   /**
    * !announce <message> - Announce in group
    */
   async handleAnnounceCommand(args, phoneNumber, from) {
-    const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
-
     if (!args[0]) {
-      return InteractiveMessageBuilder.createErrorCard(
-        'Message Required',
-        ['Usage: !announce <your message>']
-      );
+      const msg = '❌ Usage: !announce <your message>';
+      if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+      return { success: false, text: msg };
     }
 
     const message = args.join(' ');
-
-    return InteractiveMessageBuilder.createSuccessCard(
-      '📢 Announcement Posted',
-      `Your announcement has been sent:\n\n"${message}"`,
-      [
-        { text: '📢 New Announcement', id: 'announce' },
-        { text: '👥 Group Tools', id: 'grouptools' }
-      ]
-    );
+    const msg = `📢 *ANNOUNCEMENT*\n\n${message}`;
+    if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+    return { success: true, text: msg };
   }
 
   /**
    * !pollcreate <question>|<option1>|<option2>|... - Create poll
    */
   async handleCreatePollCommand(args, phoneNumber, from) {
-    const InteractiveMessageBuilder = require('../utils/interactiveMessageBuilder');
-
     if (!args[0]) {
-      return InteractiveMessageBuilder.createErrorCard(
-        'Poll Required',
-        ['Usage: !pollcreate question|option1|option2|option3']
-      );
+      const msg = '❌ Usage: !pollcreate question|option1|option2|option3';
+      if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+      return { success: false, text: msg };
     }
 
     const parts = args.join(' ').split('|');
@@ -179,23 +133,15 @@ Available commands:
     const options = parts.slice(1).map(o => o.trim()).filter(o => o);
 
     if (options.length < 2) {
-      return InteractiveMessageBuilder.createErrorCard(
-        'More Options Needed',
-        ['Provide at least 2 options separated by |']
-      );
+      const msg = '❌ Provide at least 2 options separated by |';
+      if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+      return { success: false, text: msg };
     }
 
-    const pollOptions = options.map((opt, idx) => ({
-      id: `poll_${idx}`,
-      text: opt,
-      description: '0 votes'
-    }));
-
-    return InteractiveMessageBuilder.listMessage(
-      `📊 Poll: ${question}`,
-      'Vote by selecting an option',
-      [{ title: 'Options', rows: pollOptions }]
-    );
+    const optionsList = options.map((opt, idx) => `${idx + 1}. ${opt}`).join('\n');
+    const msg = `📊 *POLL: ${question}*\n\n${optionsList}`;
+    if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+    return { success: true, text: msg };
   }
 
   /**
@@ -268,6 +214,97 @@ Available commands:
       await this.messageService.sendTextMessage(from, msg);
     }
     return { success: true, text: msg };
+  }
+
+  /**
+   * Main command router for group management
+   */
+  async handleGroupCommand(command, args, from, cleanPhone, isGroup = false) {
+    const constants = require('../config/constants');
+    
+    try {
+      // Check if command is being used in a group
+      if (!isGroup) {
+        const msg = '❌ Group commands only work in groups!';
+        if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+        return { success: false, text: msg };
+      }
+      
+      // Check if user is authorized (owner or admin) for management commands
+      const managementCommands = ['kick', 'mute', 'unmute', 'pin', 'unpin', 'warn'];
+      if (managementCommands.includes(command)) {
+        const isAdmin = constants.IS_ADMIN(cleanPhone);
+        const isOwner = constants.IS_OWNER(cleanPhone);
+        
+        if (!isAdmin && !isOwner) {
+          const msg = '🔒 Only admins can use group management commands!';
+          if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+          return { success: false, text: msg };
+        }
+      }
+
+      // Route to appropriate handler
+      switch (command) {
+        case 'groupmenu':
+        case 'grouptools':
+          return await this.handleGroupToolsCommand(cleanPhone, from, isGroup);
+        
+        case 'groupinfo':
+          return await this.handleGroupInfoCommand(cleanPhone, from, { 
+            subject: 'Group Information',
+            participants: []
+          });
+        
+        case 'memberlist':
+          return await this.handleMemberListCommand(cleanPhone, from, { 
+            participants: []
+          });
+        
+        case 'groupstats':
+          return await this.handleGroupStatsCommand(cleanPhone, from, {});
+        
+        case 'kick':
+          if (!args[0]) {
+            const msg = '❌ Usage: !kick <member_phone>';
+            if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+            return { success: false };
+          }
+          return await this.handleKickCommand(cleanPhone, from, args[0]);
+        
+        case 'mute':
+          return await this.handleMuteCommand(cleanPhone, from, args[0]);
+        
+        case 'unmute':
+          return await this.handleUnmuteCommand(cleanPhone, from);
+        
+        case 'pin':
+          if (!args[0]) {
+            const msg = '❌ Usage: !pin <message_text>';
+            if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+            return { success: false };
+          }
+          return await this.handlePinCommand(cleanPhone, from, args.join(' '));
+        
+        case 'unpin':
+          return await this.handleUnpinCommand(cleanPhone, from);
+        
+        case 'warn':
+          if (!args[0]) {
+            const msg = '❌ Usage: !warn <member_phone> [reason]';
+            if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+            return { success: false };
+          }
+          return await this.handleWarnCommand(cleanPhone, from, args[0], args.slice(1).join(' '));
+        
+        default:
+          return { success: false, text: '❌ Unknown group command' };
+      }
+    } catch (error) {
+      console.error('Group command error:', error);
+      const msg = `❌ Group command error: ${error.message}`;
+      if (this.messageService) await this.messageService.sendTextMessage(from, msg);
+      return { success: false, text: msg };
+    }
   }
 
   // ===== Helper Methods =====
