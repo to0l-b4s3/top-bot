@@ -47,6 +47,9 @@ const GroupManagementHandler = require('./handlers/groupManagementHandler');
 const FunAndGamesHandler = require('./handlers/funAndGamesHandler');
 const OtherHandler = require('./handlers/otherHandler');
 const SupportHandler = require('./handlers/supportHandler');
+const AuthHandler = require('./handlers/authHandler');
+const ToolsHandler = require('./handlers/toolsHandler');
+const OwnerDeploymentHandler = require('./handlers/ownerDeploymentHandler');
 
 class SmartWhatsAppBot {
   constructor() {
@@ -95,6 +98,9 @@ class SmartWhatsAppBot {
     this.funAndGamesHandler = null;
     this.otherHandler = null;
     this.supportHandler = null;
+    this.authHandler = null;
+    this.toolsHandler = null;
+    this.ownerDeploymentHandler = null;
   }
 
   setupLogger() {
@@ -172,6 +178,9 @@ class SmartWhatsAppBot {
       this.funAndGamesHandler = FunAndGamesHandler;
       this.otherHandler = OtherHandler;
       this.supportHandler = SupportHandler;
+      this.authHandler = AuthHandler;
+      this.toolsHandler = new ToolsHandler();
+      this.ownerDeploymentHandler = new OwnerDeploymentHandler();
 
       // Inject messageService into handlers
       this.customerHandler.setMessageService(this.messageService);
@@ -192,6 +201,15 @@ class SmartWhatsAppBot {
       }
       if (this.supportHandler && this.supportHandler.setMessageService) {
         this.supportHandler.setMessageService(this.messageService);
+      }
+      if (this.authHandler && this.authHandler.setMessageService) {
+        this.authHandler.setMessageService(this.messageService);
+      }
+      if (this.toolsHandler && this.toolsHandler.setMessageService) {
+        this.toolsHandler.setMessageService(this.messageService);
+      }
+      if (this.ownerDeploymentHandler && this.ownerDeploymentHandler.setMessageService) {
+        this.ownerDeploymentHandler.setMessageService(this.messageService);
       }
 
       // Setup event handlers
@@ -445,6 +463,36 @@ class SmartWhatsAppBot {
         case 'log':
           return await this.advancedAdminHandler.handle(command, args, from, cleanPhone);
 
+        // Tools & Utilities commands
+        case 'tools':
+        case 'utilities':
+        case 'util':
+        case 'calculator':
+        case 'calc':
+        case 'math':
+        case 'browser':
+        case 'fetch':
+        case 'web':
+        case 'shorten':
+        case 'url':
+        case 'short':
+        case 'weather':
+        case 'climate':
+        case 'forecast':
+          return await this.toolsHandler.handleToolsCommand(command, args, from, cleanPhone);
+
+        // Authentication & Profile commands
+        case 'login':
+        case 'signin':
+        case 'logout':
+        case 'signout':
+        case 'register':
+        case 'signup':
+        case 'verify':
+        case 'confirm':
+        case 'verify_code':
+          return await this.authHandler.handleAuthCommand(command, args, from, cleanPhone);
+
         // Customer commands
         case 'menu':
         case 'm':
@@ -522,7 +570,15 @@ class SmartWhatsAppBot {
         case 'owner':
         case 'eval':
         case 'exec':
-          return await this.messageService.sendTextMessage(from, '🔒 Admin privileges required');
+        case 'restart':
+        case 'update':
+        case 'backup':
+        case 'logs':
+          // Check authorization - only admin/owner can use these
+          if (!this.advancedAdminHandler.isAdmin(cleanPhone)) {
+            return await this.messageService.sendTextMessage(from, '🔒 Admin privileges required');
+          }
+          return await this.ownerDeploymentHandler.handleOwnerCommand(command, args, from, cleanPhone);
 
         default:
           return await this.messageService.sendTextMessage(

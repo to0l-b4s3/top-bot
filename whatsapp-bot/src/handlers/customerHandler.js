@@ -54,7 +54,13 @@ class CustomerHandler {
         case 'nearby':
           return await this.handleNearbyCommand(args, phoneNumber, from);
         
+        case 'products':
+        case 'prod':
+          return await this.handleProductsCommand(args, phoneNumber, from);
+        
+        case 'storedetails':
         case 'store':
+        case 'seller':
           return await this.handleStoreDetailsCommand(args[0], phoneNumber, from);
         
         // Cart operations
